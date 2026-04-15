@@ -1,65 +1,251 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Topbar } from '@/components/layout/Topbar';
+import { DropZone } from '@/components/upload/DropZone';
+import { FormatBadge } from '@/components/upload/FormatBadge';
+import { UploadProgress } from '@/components/upload/UploadProgress';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { GlassButton } from '@/components/ui/GlassButton';
+import { useFileUpload } from '@/hooks/useFileUpload';
+import { toast } from 'react-hot-toast';
+import { 
+  BrainCircuit, 
+  BarChart2, 
+  MessageCircle, 
+  Activity, 
+  Zap, 
+  Download 
+} from 'lucide-react';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
+};
+
+export default function LandingPage() {
+  const { handleFile, stage, progress, error, clearError } = useFileUpload();
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
+
+  const handleDemoClick = async () => {
+    setIsDemoLoading(true);
+    try {
+      const res = await fetch('/sample-data/sales-data.xlsx');
+      if (!res.ok) throw new Error('Failed to fetch demo data');
+      const blob = await res.blob();
+      const file = new File([blob], 'sales-data.xlsx', { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      await handleFile(file);
+    } catch (err) {
+      toast.error('Failed to load demo data');
+      console.error(err);
+    } finally {
+      setIsDemoLoading(false);
+    }
+  };
+
+  const features = [
+    {
+      icon: <BrainCircuit className="w-6 h-6 text-[var(--accent-violet)]" />,
+      title: 'AI Analysis',
+      desc: 'Instant insights powered by Gemini 2.0 Flash'
+    },
+    {
+      icon: <BarChart2 className="w-6 h-6 text-[var(--accent-cyan)]" />,
+      title: '15+ Chart Types',
+      desc: 'Bar, line, scatter, heatmap, treemap, Sankey and more'
+    },
+    {
+      icon: <MessageCircle className="w-6 h-6 text-[var(--accent-amber)]" />,
+      title: 'Natural Language Q&A',
+      desc: 'Ask any question about your data in plain English'
+    },
+    {
+      icon: <Activity className="w-6 h-6 text-[var(--accent-green)]" />,
+      title: 'Statistical Depth',
+      desc: 'Correlation, regression, clustering, anomaly detection'
+    },
+    {
+      icon: <Zap className="w-6 h-6 text-[var(--accent-violet)]" />,
+      title: 'Zero Sign-up',
+      desc: 'No accounts. No limits. Just upload and explore.'
+    },
+    {
+      icon: <Download className="w-6 h-6 text-[var(--accent-cyan)]" />,
+      title: 'Export Everything',
+      desc: 'PNG, PDF, SVG, and CSV export for all charts and reports'
+    }
+  ];
+
+  const stats = [
+    { number: '15+', label: 'Chart Types' },
+    { number: '30+', label: 'Analysis Tools' },
+    { number: '0', label: 'Sign-ups Required' },
+    { number: '<3s', label: 'AI Response' }
+  ];
+
+  const formats = ['xlsx', 'xls', 'csv', 'tsv', 'ods', 'xlsm'];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="min-h-screen bg-[var(--bg-space)] text-[var(--text-primary)] font-body flex flex-col">
+      <Topbar />
+      
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 flex flex-col items-center">
+        
+        {/* Hero Section */}
+        <motion.section 
+          className="w-full flex flex-col items-center justify-center text-center min-h-[calc(100vh-56px)] py-12"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
+          <motion.h1 
+            variants={itemVariants as any}
+            className="text-5xl md:text-7xl font-display font-bold tracking-tight mb-6 text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-violet)] to-[var(--accent-cyan)]"
+          >
+            Upload. Analyze. Understand.
+          </motion.h1>
+          
+          <motion.p 
+            variants={itemVariants as any}
+            className="text-lg md:text-xl text-[var(--text-secondary)] max-w-2xl mb-12"
+          >
+            Drop your Excel or CSV file and let AI uncover the story inside your data — in seconds.
+          </motion.p>
+          
+          <motion.div variants={itemVariants as any} className="w-full max-w-[600px] relative mb-8">
+            <DropZone 
+              onFileAccepted={handleFile} 
+              stage={stage}
+              progress={progress}
+              error={error}
+            />
+            {stage !== 'idle' && (
+              <UploadProgress stage={stage} progress={progress} />
+            )}
+          </motion.div>
+          
+          <motion.div variants={itemVariants as any} className="flex flex-wrap justify-center gap-2 mb-8">
+            {formats.map(fmt => (
+              <FormatBadge key={fmt} format={fmt} />
+            ))}
+          </motion.div>
+          
+          <motion.div variants={itemVariants as any}>
+            <GlassButton 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleDemoClick}
+              disabled={isDemoLoading || stage !== 'idle'}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+              {isDemoLoading ? 'Loading demo...' : 'Try with demo data'}
+            </GlassButton>
+          </motion.div>
+        </motion.section>
+        
+        {/* Feature Grid */}
+        <motion.section 
+          className="w-full py-20"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map((feature, idx) => (
+              <motion.div key={idx} variants={itemVariants as any} className="h-full">
+                <GlassCard variant="default" glow="none" className="h-full flex flex-col items-start text-left hover:glow-violet transition-all duration-300">
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10 mb-4">
+                    {feature.icon}
+                  </div>
+                  <h3 className="text-xl font-display font-medium mb-2">{feature.title}</h3>
+                  <p className="text-[var(--text-secondary)]">{feature.desc}</p>
+                </GlassCard>
+              </motion.div>
+            ))}
+          </div>
+        </motion.section>
+        
+        {/* Stats Bar */}
+        <motion.section 
+          className="w-full py-12 mb-20"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true }}
+        >
+          <GlassCard variant="heavy" glow="violet" className="w-full rounded-2xl p-8 md:p-12">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-white/10">
+              {stats.map((stat, idx) => (
+                <motion.div 
+                  key={idx} 
+                  variants={itemVariants as any}
+                  className="flex flex-col items-center justify-center text-center px-4"
+                >
+                  <div className="text-4xl md:text-5xl font-display font-bold text-white mb-2 drop-shadow-[0_0_15px_var(--accent-violet-glow)]">
+                    {stat.number}
+                  </div>
+                  <div className="text-sm md:text-base text-[var(--text-secondary)] uppercase tracking-wider font-medium">
+                    {stat.label}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </GlassCard>
+        </motion.section>
+
+        {/* Supported Formats Section */}
+        <motion.section 
+          className="w-full flex flex-col items-center text-center pb-20"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true }}
+        >
+          <motion.h3 variants={itemVariants as any} className="text-2xl font-display font-medium mb-8">
+            Supported Formats
+          </motion.h3>
+          <motion.div variants={itemVariants as any} className="flex flex-wrap justify-center gap-3">   
+            {formats.map(fmt => (
+              <div key={fmt} className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-mono text-[var(--text-secondary)]">
+                .{fmt}
+              </div>
+            ))}
+          </motion.div>
+        </motion.section>
+
+      </main>
+
+      {/* Footer */}
+      <footer className="w-full py-8 border-t border-white/10 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col items-center justify-center gap-4 text-center">
+          <p className="font-display font-medium text-[var(--text-primary)]">
+            AXIOM — Upload. Analyze. Understand.
+          </p>
+          <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)]">
+            <a href="https://github.com" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
+              GitHub
+            </a>
+            <span>•</span>
+            <span>Built with Next.js + Gemini</span>
+          </div>
+          <p className="text-xs text-[var(--text-tertiary)]">
+            &copy; {new Date().getFullYear()} AXIOM. All rights reserved.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </footer>
     </div>
   );
 }

@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['xlsx'],
   },
-  webpack: (config) => {
+  turbopack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       canvas: false,
