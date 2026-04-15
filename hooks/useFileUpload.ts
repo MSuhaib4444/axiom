@@ -43,7 +43,10 @@ export function useFileUpload() {
       setStage('done');
       setProgress(100);
       
-      toast.success('Successfully parsed dataset');
+      const sheet = result.sheets[0];
+      toast.success(
+        `File parsed successfully — ${sheet?.rowCount || 0} rows, ${sheet?.columnCount || 0} columns`
+      );
       
       await sleep(500);
       router.push('/workspace');

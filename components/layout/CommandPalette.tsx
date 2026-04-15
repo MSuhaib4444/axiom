@@ -244,8 +244,8 @@ export const CommandPalette: React.FC = () => {
                         <Command.Item
                           key={cmd.id}
                           value={`${cmd.label} ${cmd.description ?? ''}`}
-                          disabled={cmd.disabled}
-                          onSelect={cmd.disabled ? undefined : cmd.action}
+                          disabled={!!cmd.disabled}
+                          {...(cmd.disabled || !cmd.action ? {} : { onSelect: () => cmd.action?.() })}
                           className={cn(
                             'flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer',
                             'text-[var(--text-secondary)] transition-all duration-100',

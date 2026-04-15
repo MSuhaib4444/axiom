@@ -12,12 +12,24 @@ import {
   TableProperties,
   ListFilter
 } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { GlassButton } from '../ui/GlassButton';
 
 export const Sidebar: React.FC = () => {
   const { sidebarCollapsed, setSidebarCollapsed, isMobile } = useUIStore();
   const { file, activeSheet, setActiveSheet, selectedColumns, toggleColumnSelection, getActiveSheetData, stats } = useDataStore();
+  const pathname = usePathname();
   
+  const handleColumnClick = (colKey: string) => {
+    toggleColumnSelection(colKey);
+    if (pathname === '/analyze') {
+       const profilerEl = document.getElementById('profiler');
+       if (profilerEl) {
+          profilerEl.scrollIntoView({ behavior: 'smooth' });
+       }
+    }
+  };
+
   const activeData = getActiveSheetData();
 
   if (!file) {
@@ -112,7 +124,7 @@ export const Sidebar: React.FC = () => {
                   return (
                     <li key={col.key}>
                       <button
-                        onClick={() => toggleColumnSelection(col.key)}
+                        onClick={() => handleColumnClick(col.key)}
                         className={cn(
                           "w-full flex items-center justify-between px-2 py-1.5 text-sm rounded-md transition-all group border-l-2",
                           isSelected 

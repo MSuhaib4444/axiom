@@ -24,6 +24,7 @@ export interface OutlierResult {
   zScore: number;
   method: 'zscore' | 'iqr';
   severity: 'low' | 'medium' | 'high';
+  columnKey?: string;
 }
 
 export interface CorrelationEntry {

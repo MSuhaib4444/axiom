@@ -4,7 +4,9 @@ const nextConfig: NextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['xlsx'],
   },
-  turbopack: (config) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  webpack: (config: any) => {
+    if (!config.resolve) config.resolve = {};
     config.resolve.alias = {
       ...config.resolve.alias,
       canvas: false,

@@ -1,10 +1,19 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels';
+import { ChartPicker } from '@/components/charts/ChartPicker';
+import { ChartCanvas } from '@/components/charts/ChartCanvas';
+import { useChartExporter } from '@/components/charts/ChartExporter';
+import { ChartConfig } from '@/types/charts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDataStore } from '@/store/dataStore';
 import { useUIStore } from '@/store/uiStore';
+import { useAIStore } from '@/store/aiStore';
+import { useGeminiStream } from '@/hooks/useGeminiStream';
+import { InsightCard } from '@/components/ai/InsightCard';
+import { toast } from 'react-hot-toast';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { Topbar } from '@/components/layout/Topbar';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -13,6 +22,7 @@ import { CommandPalette } from '@/components/layout/CommandPalette';
 import { DataGrid } from '@/components/grid/DataGrid';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassButton } from '@/components/ui/GlassButton';
+import { StatSummaryPanel } from '@/components/analysis/StatSummaryPanel';
 import { cn } from '@/lib/utils';
 import {
   Sparkles,
@@ -26,6 +36,8 @@ import {
   TrendingUp,
   Lightbulb,
   AlertTriangle,
+  RotateCcw,
+  Loader2,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────
@@ -137,7 +149,9 @@ interface AIPanelProps {
   onToggle: () => void;
 }
 
-function AIPanel({ isOpen, width, isMobile, onToggle }: AIPanelProps) {
+function AIPanel({ isOpen, width, isMobile, onToggle, onReAnalyze }: AIPanelProps & { onReAnalyze: () => void }) {
+  const { insights, isThinking } = useAIStore();
+
   // Hidden entirely on mobile
   if (isMobile) return null;
 
@@ -182,67 +196,66 @@ function AIPanel({ isOpen, width, isMobile, onToggle }: AIPanelProps) {
                 <span className="text-sm font-semibold text-[var(--text-primary)]">
                   AI Insights
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[var(--accent-cyan)]/10 border border-[var(--accent-cyan)]/20 text-[var(--accent-cyan)]">
-                  Phase 2
-                </span>
               </div>
-              <button
-                onClick={onToggle}
-                className="p-1 rounded-md text-[var(--text-tertiary)] hover:text-white hover:bg-white/10 transition-colors"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={onReAnalyze}
+                  disabled={isThinking}
+                  className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/10 transition-colors disabled:opacity-50"
+                  title="Re-analyze dataset"
+                >
+                  <RotateCcw className={cn("w-3.5 h-3.5", isThinking && "animate-spin")} />
+                </button>
+                <button
+                  onClick={onToggle}
+                  className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            {/* Placeholder content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {/* Coming-soon insight cards */}
-              {[
-                {
-                  icon: <Wand2 className="w-4 h-4" />,
-                  label: 'Auto-Summary',
-                  desc: 'Gemini will summarize your dataset in plain English.',
-                  color: 'var(--accent-violet)',
-                },
-                {
-                  icon: <TrendingUp className="w-4 h-4" />,
-                  label: 'Trend Detection',
-                  desc: 'Automatically detect trends and seasonality in time-series columns.',
-                  color: 'var(--accent-cyan)',
-                },
-                {
-                  icon: <AlertTriangle className="w-4 h-4" />,
-                  label: 'Anomaly Alerts',
-                  desc: 'Highlights statistical outliers and data quality issues.',
-                  color: 'var(--accent-amber)',
-                },
-                {
-                  icon: <Lightbulb className="w-4 h-4" />,
-                  label: 'Smart Suggestions',
-                  desc: 'Recommends the best chart types and analyses for your data.',
-                  color: 'var(--accent-green)',
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="p-3 rounded-xl border border-white/8 bg-white/[0.03] space-y-1.5 opacity-60"
-                >
-                  <div className="flex items-center gap-2" style={{ color: item.color }}>
-                    {item.icon}
-                    <span className="text-xs font-semibold">{item.label}</span>
-                  </div>
-                  <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
-                    {item.desc}
-                  </p>
+            {/* Insights Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Thinking Indicator */}
+              {isThinking && (
+                <div className="flex items-center justify-center gap-1.5 py-4">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-cyan)] animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-cyan)] animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-cyan)] animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
-              ))}
+              )}
+
+              {/* Insights List */}
+              <AnimatePresence mode="popLayout">
+                {insights.length > 0 ? (
+                  <motion.div 
+                    initial="hidden"
+                    animate="visible"
+                    className="space-y-3"
+                  >
+                    {insights.map((insight) => (
+                      <InsightCard key={insight.id} insight={insight} />
+                    ))}
+                  </motion.div>
+                ) : !isThinking ? (
+                  <div className="space-y-4 opacity-50">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-24 w-full rounded-xl bg-white/5 animate-pulse border border-white/10" />
+                    ))}
+                    <p className="text-center text-[10px] text-slate-500 uppercase tracking-widest pt-2">
+                      Analyzing your data...
+                    </p>
+                  </div>
+                ) : null}
+              </AnimatePresence>
             </div>
 
             {/* Panel footer */}
             <div className="px-4 py-3 border-t border-[var(--glass-border)] flex-shrink-0">
               <div className="flex items-center gap-2 text-[11px] text-[var(--text-tertiary)]">
                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-violet)] animate-pulse" />
-                Powered by Gemini 2.0 Flash — Phase 2
+                Powered by Gemini 2.0 Flash — AXIOM Phase 2
               </div>
             </div>
           </motion.div>
@@ -257,7 +270,14 @@ function AIPanel({ isOpen, width, isMobile, onToggle }: AIPanelProps) {
 // ─────────────────────────────────────────────
 export default function WorkspacePage() {
   const router = useRouter();
-  const { file } = useDataStore();
+  const { file, getActiveSheetData } = useDataStore();
+  const { 
+    addInsight, 
+    clearInsights, 
+    setIsThinking, 
+    isThinking 
+  } = useAIStore();
+  
   const {
     activeView,
     sidebarCollapsed,
@@ -268,6 +288,87 @@ export default function WorkspacePage() {
     togglePanel,
     rightPanelWidth,
   } = useUIStore();
+
+  const analyzedFileId = useRef<string | null>(null);
+
+  const handleAnalysisComplete = useCallback((result: string) => {
+    try {
+      // Find JSON block if it's wrapped in markdown
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : result;
+      const data = JSON.parse(jsonStr);
+      
+      clearInsights();
+      
+      // Add summary as a general insight
+      if (data.summary) {
+        addInsight({
+          type: 'summary',
+          title: 'Dataset Summary',
+          description: data.summary,
+          severity: 'info',
+        });
+      }
+
+      // Add key insights
+      data.keyInsights?.forEach((text: string) => {
+        addInsight({
+          type: 'trend',
+          title: 'Key Insight',
+          description: text,
+          severity: 'info',
+        });
+      });
+
+      // Add data quality issues
+      data.dataQualityIssues?.forEach((issue: { column: string; issue: string; severity?: 'warning' | 'info' | 'critical' }) => {
+        addInsight({
+          type: 'anomaly',
+          title: `Quality Issue: ${issue.column}`,
+          description: issue.issue,
+          severity: issue.severity || 'warning',
+          affectedColumns: [issue.column],
+        });
+      });
+
+      setIsThinking(false);
+      const insightCount = (data.keyInsights?.length || 0) + (data.dataQualityIssues?.length || 0) + (data.summary ? 1 : 0);
+      toast.success(`AI analysis complete — ${insightCount} insights found`);
+    } catch (e) {
+      console.error('Failed to parse AI analysis:', e);
+      setIsThinking(false);
+      toast.error('Failed to process AI insights');
+    }
+  }, [clearInsights, addInsight, setIsThinking]);
+
+  const { stream, abort } = useGeminiStream({
+    endpoint: '/api/gemini/analyze',
+    onComplete: handleAnalysisComplete,
+    onError: (err) => {
+      setIsThinking(false);
+      toast.error(err);
+    }
+  });
+
+  const triggerAnalysis = useCallback(() => {
+    const sheet = getActiveSheetData();
+    if (!sheet || isThinking) return;
+
+    setIsThinking(true);
+    stream({ sheet });
+  }, [getActiveSheetData, isThinking, setIsThinking, stream]);
+
+  // Auto-trigger analysis when file changes
+  useEffect(() => {
+    if (file && analyzedFileId.current !== file.name) {
+      analyzedFileId.current = file.name;
+      triggerAnalysis();
+    }
+    
+    return () => abort();
+  }, [file, triggerAnalysis, abort]);
+
+  const [currentChartConfig, setCurrentChartConfig] = useState<ChartConfig | null>(null);
 
   // Register workspace keyboard shortcuts
   useKeyboardShortcuts();
@@ -359,44 +460,111 @@ export default function WorkspacePage() {
 
             {/* CHARTS VIEW */}
             {activeView === 'charts' && (
-              <PlaceholderView
+              <motion.div
                 key="charts"
-                icon={<BarChart2 className="w-12 h-12" />}
-                title="Chart Studio"
-                badge="Phase 2"
-                description="Drag columns onto axes and choose from 15+ chart types — bar, line, scatter, heatmap, treemap, Sankey, candlestick and more."
-                accentColor="var(--accent-cyan)"
-                features={[
-                  'Bar, Line, Area, Pie',
-                  'Scatter, Heatmap, Radar',
-                  'Treemap & Sankey',
-                  'Candlestick & Box Plot',
-                  'Export PNG / SVG / PDF',
-                  'AI-recommended charts',
-                ]}
-              />
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.12 }}
+                className="absolute inset-0"
+              >
+                <PanelGroup orientation="horizontal" className="h-full">
+                  {/* Left: Picker Panel (Increase default size for visibility) */}
+                  <Panel 
+                    defaultSize="30%" 
+                    minSize="25%" 
+                    maxSize="45%"
+                    className="h-full border-r border-[var(--glass-border)] bg-black/10 overflow-y-auto custom-scrollbar"
+                  >
+                    <div className="p-6">
+                      <div className="flex items-center gap-2 mb-6">
+                        <div className="w-8 h-8 rounded-lg bg-[var(--accent-violet)]/15 flex items-center justify-center">
+                          <BarChart2 className="w-4 h-4 text-[var(--accent-violet)]" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-white">Chart Config</h3>
+                      </div>
+                      <ChartPicker onConfigChange={setCurrentChartConfig} />
+                    </div>
+                  </Panel>
+
+                  <PanelResizeHandle className="w-1.5 bg-transparent hover:bg-[var(--accent-cyan)]/30 active:bg-[var(--accent-cyan)]/50 transition-colors relative z-10 group">
+                    <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-[var(--glass-border)] group-hover:bg-[var(--accent-cyan)]/50" />
+                  </PanelResizeHandle>
+
+                  {/* Right: Canvas Panel (flex-1) */}
+                  <Panel className="h-full overflow-y-auto bg-black/5">
+                    <div className="p-8 pb-24">
+                      {currentChartConfig ? (
+                        <div className="max-w-4xl mx-auto space-y-8">
+                          <ChartCanvas 
+                            config={currentChartConfig} 
+                            height={500}
+                          />
+                          
+                          <div className="flex justify-center">
+                            <GlassButton
+                              variant="ghost"
+                              className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent-cyan)]"
+                              onClick={() => router.push('/visualize')}
+                            >
+                              Open in Full Studio
+                            </GlassButton>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-40">
+                          <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
+                            <BarChart2 className="w-8 h-8 text-white" />
+                          </div>
+                          <div className="space-y-1">
+                            <h4 className="text-lg font-medium text-white">Configure a chart</h4>
+                            <p className="text-sm text-slate-400 max-w-xs">
+                              Select columns and chart type on the left to visualize your data.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Panel>
+                </PanelGroup>
+              </motion.div>
             )}
 
             {/* ANALYSIS VIEW */}
             {activeView === 'analysis' && (
-              <PlaceholderView
+              <motion.div
                 key="analysis"
-                icon={<Activity className="w-12 h-12" />}
-                title="Statistical Analysis"
-                badge="Phase 2"
-                description="Professional-grade statistical analysis across every column — distributions, correlations, regression, clustering, and anomaly detection."
-                accentColor="var(--accent-green)"
-                features={[
-                  'Column Profiler',
-                  'Correlation Matrix',
-                  'Distribution Explorer',
-                  'Anomaly Detection',
-                  'K-Means Clustering',
-                  'Linear Regression',
-                  'Time-Series Decomposition',
-                  'Multi-Sheet Join',
-                ]}
-              />
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.12 }}
+                className="absolute inset-0 flex items-center justify-center p-8 bg-black/40"
+              >
+                <div className="max-w-md w-full">
+                  <GlassCard className="text-center py-12 flex flex-col items-center">
+                    <div className="w-16 h-16 rounded-2xl bg-[var(--accent-cyan)]/15 flex items-center justify-center border border-[var(--accent-cyan)]/30 mb-6 shadow-[0_0_30px_rgba(0,212,255,0.2)]">
+                      <Activity className="w-8 h-8 text-[var(--accent-cyan)]" />
+                    </div>
+                    
+                    <h2 className="text-2xl font-display font-bold text-white mb-3">
+                      Deep Data Analysis
+                    </h2>
+                    
+                    <p className="text-slate-400 text-sm mb-8 px-4 leading-relaxed">
+                      Explore descriptive statistics, run column profiling, discover feature correlations, and detect anomalies using robust statistical methods and AI.
+                    </p>
+                    
+                    <GlassButton 
+                      variant="primary" 
+                      onClick={() => router.push('/analyze')}
+                      className="px-8 shadow-[0_0_20px_var(--accent-violet-glow)]"
+                    >
+                      <Activity className="w-4 h-4 mr-2" />
+                      Open Full Analysis Workspace
+                    </GlassButton>
+                  </GlassCard>
+                </div>
+              </motion.div>
             )}
 
             {/* ASK AI VIEW */}
@@ -445,9 +613,10 @@ export default function WorkspacePage() {
       {/* ── AI Insights Panel (right, slides in/out) ── */}
       <AIPanel
         isOpen={isAIPanelOpen}
-        width={rightPanelWidth}
+        width={aiPanelW}
         isMobile={isMobile}
         onToggle={() => togglePanel('aiPanel')}
+        onReAnalyze={triggerAnalysis}
       />
     </div>
   );

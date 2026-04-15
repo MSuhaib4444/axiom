@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { UploadCloud, AlertCircle } from 'lucide-react';
 import { FormatBadge } from './FormatBadge';
 import { UploadProgress, UploadStage } from './UploadProgress';
+import { FileRejection } from 'react-dropzone';
 import { cn } from '@/lib/utils';
 
 export interface DropZoneProps {
@@ -27,12 +28,12 @@ export const DropZone: React.FC<DropZoneProps> = ({
   
   const displayError = error || localError;
 
-  const onDrop = useCallback((acceptedFiles: File[], fileRejections: any[]) => {
+  const onDrop = useCallback((acceptedFiles: File[], fileRejections: FileRejection[]) => {
     setLocalError(null);
     
     if (fileRejections.length > 0) {
       const rejection = fileRejections[0];
-      if (rejection.errors[0]?.code === 'file-too-large') {
+      if (rejection && rejection.errors[0]?.code === 'file-too-large') {
         const maxSize = process.env.NEXT_PUBLIC_MAX_FILE_SIZE_MB || '50';
         setLocalError(`File too large — maximum limit is ${maxSize}MB`);
       } else {
@@ -65,8 +66,9 @@ export const DropZone: React.FC<DropZoneProps> = ({
 
   return (
     <div className={cn("relative w-full", className)}>
+      {/* @ts-expect-error missing strict types for framer-motion */}
       <motion.div
-        {...(getRootProps() as any)}
+        {...getRootProps()}
         animate={{
           scale: isDragActive ? 1.02 : 1,
           borderColor: displayError 

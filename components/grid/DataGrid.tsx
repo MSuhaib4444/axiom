@@ -230,11 +230,12 @@ export const DataGrid: React.FC = () => {
                       style={{ height, width: Math.max(width, table.getTotalSize()) }}
                       rowCount={rows.length}
                       rowHeight={ROW_HEIGHT}
-                      rowProps={{}}
-                      rowComponent={renderRow as any}
                       overscanCount={10}
                       className="no-scrollbar"
-                    />
+                    >
+                      {/* @ts-expect-error react-window's List typings are quite strict */}
+                      {renderRow}
+                    </List>
                   );
                 }} />
               </div>
