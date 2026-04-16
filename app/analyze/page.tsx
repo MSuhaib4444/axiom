@@ -10,9 +10,11 @@ import { AnomalyDetector } from '@/components/analysis/AnomalyDetector';
 import { Topbar } from '@/components/layout/Topbar';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { CommandPalette } from '@/components/layout/CommandPalette';
+import { useUIStore } from '@/store/uiStore';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { useGeminiStream } from '@/hooks/useGeminiStream';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { toast } from 'react-hot-toast';
 import { Wand2, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -21,6 +23,20 @@ export default function AnalyzePage() {
     const router = useRouter();
     const { file, getActiveSheetData } = useDataStore();
     const sheet = getActiveSheetData();
+    const { sidebarCollapsed, isMobile, setIsMobile, setActiveView } = useUIStore();
+
+    useEffect(() => {
+        setActiveView('analysis');
+    }, [setActiveView]);
+
+    // Responsive: detect mobile breakpoint
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        const mediaQuery = window.matchMedia('(max-width: 767px)');
+        mediaQuery.addEventListener('change', (e) => setIsMobile(e.matches));
+        return () => mediaQuery.removeEventListener('change', (e) => setIsMobile(e.matches));
+    }, [setIsMobile]);
 
     useEffect(() => {
         if (!file) {
@@ -32,6 +48,39 @@ export default function AnalyzePage() {
     const [selectedColumn, setSelectedColumn] = useState('');
     const [aiResult, setAiResult] = useState<string | null>(null);
     const [isAiLoading, setIsAiLoading] = useState(false);
+
+    // Register keyboard shortcuts
+    useKeyboardShortcuts();
+
+    // Scroll-Spy Implementation
+    useEffect(() => {
+        const container = document.getElementById('analyze-container');
+        if (!container) return;
+
+        const observerOptions = {
+            root: container,
+            rootMargin: '-10% 0px -80% 0px', // Triggers when section enters top 10%-20% of viewport
+            threshold: 0,
+        };
+
+        const observerCallback = (entries: IntersectionObserverEntry[]) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    setActiveSection(entry.target.id);
+                }
+            });
+        };
+
+        const observer = new IntersectionObserver(observerCallback, observerOptions);
+        
+        const sections = ['statistics', 'profiler', 'correlation', 'anomalies'];
+        sections.forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) observer.observe(el);
+        });
+
+        return () => observer.disconnect();
+    }, [sheet]); // Re-observe if sheet changes/data renders
 
     const { stream } = useGeminiStream({
         endpoint: '/api/gemini/analyze',
@@ -62,13 +111,15 @@ export default function AnalyzePage() {
         { id: 'anomalies', label: 'Anomalies' }
     ];
 
+    const sidebarW = isMobile ? 0 : sidebarCollapsed ? 48 : 240;
+
     return (
         <div className="h-screen flex flex-col bg-[var(--bg-space)] overflow-hidden relative">
             <Topbar />
             <Sidebar />
             <CommandPalette />
             
-            <main className="absolute inset-0 flex flex-col transition-all duration-300" style={{ top: 56, left: 240, bottom: 0 }}>
+            <main className="absolute inset-0 flex flex-col transition-all duration-300" style={{ top: 56, left: sidebarW, bottom: 0 }}>
                 <div className="flex-1 overflow-y-auto scroll-smooth p-8 pb-32" id="analyze-container">
                     <div className="max-w-6xl mx-auto space-y-16">
                         {/* Section Navigation Tabs */}

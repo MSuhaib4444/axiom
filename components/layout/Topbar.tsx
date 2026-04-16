@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUIStore, ViewType } from '@/store/uiStore';
 import { useDataStore } from '@/store/dataStore';
+import { useRouter, usePathname } from 'next/navigation';
 import { GlassTabs, GlassTabOption } from '../ui/GlassTabs';
 import { GlassSelect } from '../ui/GlassSelect';
 import { GlassButton } from '../ui/GlassButton';
@@ -12,7 +13,27 @@ import { cn } from '@/lib/utils';
 export const Topbar: React.FC = () => {
   const { activeView, setActiveView, isMobile, openModal, toggleCommandPalette } = useUIStore();
   const { file } = useDataStore();
+  const router = useRouter();
+  const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
+
+  const handleViewChange = (view: ViewType) => {
+    setActiveView(view);
+    
+    // Logic to determine if we need to switch pages
+    const isWorkspaceView = ['grid', 'charts', 'ai', 'report'].includes(view);
+    const isAnalysisView = view === 'analysis';
+    
+    if (isWorkspaceView && pathname !== '/workspace') {
+      router.push('/workspace');
+    } else if (isAnalysisView && pathname !== '/analyze') {
+      router.push('/analyze');
+    } else if (window.location.hash) {
+      // If we are already on the correct page but have a hash, 
+      // cleared it to prevent "stuck" navigation as described by user
+      router.push(pathname);
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -70,7 +91,7 @@ export const Topbar: React.FC = () => {
           <div className="w-40">
             <GlassSelect
               value={activeView}
-              onValueChange={(val) => setActiveView(val as ViewType)}
+              onValueChange={(val) => handleViewChange(val as ViewType)}
               options={viewOptions.map(opt => ({ value: opt.value, label: opt.label }))}
             />
           </div>
@@ -78,7 +99,7 @@ export const Topbar: React.FC = () => {
           <GlassTabs
             tabs={viewOptions}
             value={activeView}
-            onValueChange={(val) => setActiveView(val as ViewType)}
+            onValueChange={(val) => handleViewChange(val as ViewType)}
             className="w-auto"
             listClassName="border-none space-x-1"
           />

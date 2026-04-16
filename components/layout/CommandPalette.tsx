@@ -4,7 +4,7 @@ import React, { useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUIStore, ViewType } from '@/store/uiStore';
 import { useDataStore } from '@/store/dataStore';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Command } from 'cmdk';
 import {
   LayoutGrid,
@@ -58,8 +58,21 @@ export const CommandPalette: React.FC = () => {
     (view: ViewType) => {
       setActiveView(view);
       toggleCommandPalette();
+
+      // Routing logic
+      const isWorkspaceView = ['grid', 'charts', 'ai', 'report'].includes(view);
+      const isAnalysisView = view === 'analysis';
+      const pathname = window.location.pathname; // usePathname isn't strictly needed if we use window.location, but let's be consistent
+
+      if (isWorkspaceView && pathname !== '/workspace') {
+        router.push('/workspace');
+      } else if (isAnalysisView && pathname !== '/analyze') {
+        router.push('/analyze');
+      } else if (window.location.hash) {
+        router.push(pathname);
+      }
     },
-    [setActiveView, toggleCommandPalette],
+    [setActiveView, toggleCommandPalette, router],
   );
 
   const commands: CommandItem[] = [

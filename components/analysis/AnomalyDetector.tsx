@@ -74,8 +74,12 @@ export const AnomalyDetector: React.FC = () => {
 
     const uniqueColumns = new Set(outliers.map(o => o.columnKey)).size;
 
+    const highSeverityOutliers = outliers.filter(o => o.severity === 'high');
+    const hasHighSeverity = highSeverityOutliers.length > 0;
+
     const handleHighlight = () => {
-        const rowIndices = Array.from(new Set(outliers.map(o => o.rowIndex)));
+        if (!hasHighSeverity) return;
+        const rowIndices = Array.from(new Set(highSeverityOutliers.map(o => o.rowIndex)));
         highlightRows(rowIndices);
     };
 
@@ -108,8 +112,14 @@ export const AnomalyDetector: React.FC = () => {
             </div>
 
             <div className="flex gap-2 mb-4">
-                <GlassButton variant="primary" onClick={handleHighlight} className="text-xs">
-                    Highlight in Grid
+                <GlassButton 
+                    variant="primary" 
+                    onClick={handleHighlight} 
+                    className="text-xs"
+                    disabled={!hasHighSeverity}
+                    title={!hasHighSeverity ? "No high severity anomalies found" : "Highlight rows with high deviation"}
+                >
+                    Highlight High Risk
                 </GlassButton>
                 {hasHighlights && (
                     <GlassButton variant="ghost" onClick={clearHighlights} className="text-xs">

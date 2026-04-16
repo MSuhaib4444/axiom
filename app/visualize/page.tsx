@@ -7,6 +7,7 @@ import { useAIStore } from '@/store/aiStore';
 import { ChartType, ChartConfig } from '@/types/charts';
 import { ChartCanvas } from '@/components/charts/ChartCanvas';
 import { useChartExporter } from '@/components/charts/ChartExporter';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassSelect } from '@/components/ui/GlassSelect';
 import { GlassButton } from '@/components/ui/GlassButton';
@@ -55,6 +56,9 @@ export default function VisualizePage() {
   const { insights } = useAIStore();
   const sheet = getActiveSheetData();
   const chartContainerRef = useRef<HTMLDivElement>(null);
+
+  // Register keyboard shortcuts
+  useKeyboardShortcuts();
 
   // Redirect if no file
   useEffect(() => {

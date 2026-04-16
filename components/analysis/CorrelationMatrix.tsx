@@ -50,6 +50,16 @@ export const CorrelationMatrix: React.FC = () => {
     return () => clearTimeout(timer);
   }, [sheet, numericColumns]);
 
+  const colorScale = useMemo(() => {
+    if (!d3) return () => '#222';
+    // Use interpolateRdYlBu (Diverging Red-Yellow-Blue) which is standard for -1 to 1
+    // or fallback to interpolateRdBu if for some reason it's missing (it shouldn't be)
+    const interpolator = d3.interpolateRdYlBu || d3.interpolateRdBu || (() => '#888');
+    return d3.scaleSequential()
+      .domain([-1, 1])
+      .interpolator(interpolator);
+  }, [d3]);
+
   if (!sheet) return null;
 
   if (numericColumns.length < 2) {
@@ -76,10 +86,6 @@ export const CorrelationMatrix: React.FC = () => {
   const padding = 120; // for labels
   const width = numericColumns.length * cellSize + padding * 2;
   const height = numericColumns.length * cellSize + padding * 2;
-
-  const colorScale = d3.scaleSequential()
-    .domain([-1, 1])
-    .interpolator(d3.interpolateRdYlPu);
 
   const handleCellClick = (colA: string, colB: string) => {
     // Navigate to visualize page and set up scatter plot

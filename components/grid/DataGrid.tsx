@@ -38,7 +38,7 @@ export const DataGrid: React.FC = () => {
   // 1. Build filtered & sorted data BEFORE passing to table model
   const data = useMemo(() => {
     if (!activeData) return [];
-    let rows = activeData.rows;
+    let rows = activeData.rows.map((r, i) => ({ ...r, _originalIndex: i }));
 
     if (searchTerm) {
       const lowerSearch = searchTerm.toLowerCase();
@@ -117,9 +117,9 @@ export const DataGrid: React.FC = () => {
         />
       ),
       cell: (info) => {
-        // Find if this row is highlighted (using original index if possible, using array index here)
-        const rowIndex = info.row.index; // For simplicity
-        const isHighlighted = highlightedRows.includes(rowIndex);
+        // Use the original index we injected to check for highlights
+        const originalIndex = (info.row.original as any)._originalIndex as number;
+        const isHighlighted = highlightedRows.includes(originalIndex);
         
         return (
           <div className={cn(
@@ -230,12 +230,11 @@ export const DataGrid: React.FC = () => {
                       style={{ height, width: Math.max(width, table.getTotalSize()) }}
                       rowCount={rows.length}
                       rowHeight={ROW_HEIGHT}
+                      rowProps={{}}
+                      rowComponent={renderRow as any}
                       overscanCount={10}
                       className="no-scrollbar"
-                    >
-                      {/* @ts-expect-error react-window's List typings are quite strict */}
-                      {renderRow}
-                    </List>
+                    />
                   );
                 }} />
               </div>

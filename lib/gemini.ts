@@ -17,7 +17,7 @@ export function getClient(): GenerativeModel {
   }
   
   const genAI = new GoogleGenerativeAI(apiKey);
-  const modelName = process.env.NEXT_PUBLIC_GEMINI_MODEL || 'gemini-2.0-flash-exp';
+  const modelName = process.env.NEXT_PUBLIC_GEMINI_MODEL || 'gemini-2.5-flash';
   
   return genAI.getGenerativeModel({ model: modelName });
 }
