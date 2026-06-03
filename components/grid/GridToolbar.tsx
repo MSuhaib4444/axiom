@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { useDataStore } from '@/store/dataStore';
-import { Download, Search } from 'lucide-react';
+import { Download, Search, FileSpreadsheet } from 'lucide-react';
 import { GlassButton } from '../ui/GlassButton';
-import * as XLSX from 'xlsx';
+import { useExport } from '@/hooks/useExport';
 
 export interface GridToolbarProps {
   searchTerm: string;
@@ -19,25 +19,16 @@ export const GridToolbar: React.FC<GridToolbarProps> = ({
 }) => {
   const { getActiveSheetData } = useDataStore();
   const activeData = getActiveSheetData();
+  const { exportCSV, exportXLSX } = useExport();
 
   const handleExportCSV = () => {
     if (!activeData) return;
-    try {
-      // Create a temporary workbook to use XLSX's CSV export
-      const ws = XLSX.utils.json_to_sheet(activeData.rows);
-      const csv = XLSX.utils.sheet_to_csv(ws);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      link.setAttribute("download", `${activeData.name}_export.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (e) {
-      console.error('Failed to export CSV', e);
-    }
+    exportCSV(activeData, `${activeData.name}_export.csv`);
+  };
+
+  const handleExportExcel = () => {
+    if (!activeData) return;
+    exportXLSX(activeData, `${activeData.name}_export.xlsx`);
   };
 
   const totalCount = activeData?.rowCount || 0;
@@ -66,16 +57,26 @@ export const GridToolbar: React.FC<GridToolbarProps> = ({
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center">
+      <div className="flex items-center gap-2">
         <GlassButton 
           variant="ghost" 
           size="sm" 
-          className="h-8 text-xs px-3 py-0"
+          className="h-8 text-xs px-3 py-0 animate-fade-in"
           onClick={handleExportCSV}
           disabled={!activeData || filteredCount === 0}
         >
           <Download className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Export CSV</span>
+        </GlassButton>
+        <GlassButton 
+          variant="ghost" 
+          size="sm" 
+          className="h-8 text-xs px-3 py-0 animate-fade-in"
+          onClick={handleExportExcel}
+          disabled={!activeData || filteredCount === 0}
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5 text-green-400" />
+          <span className="hidden sm:inline">Export Excel</span>
         </GlassButton>
       </div>
     </div>

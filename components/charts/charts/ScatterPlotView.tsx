@@ -23,15 +23,15 @@ interface ScatterPlotViewProps {
 const AXIOM_COLORS = ['#6C63FF', '#00D4FF', '#39FF14', '#FFB627', '#FF4757'];
 
 const CustomTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
+  if (active && payload && payload.length >= 2) {
     return (
       <div className="glass-card p-3 border border-white/10 shadow-xl">
         <p className="text-xs font-bold text-slate-200 mb-1">{payload[0].name}</p>
         <p className="text-sm font-medium text-[var(--accent-cyan)]">
-          X: {payload[0].value.toLocaleString()}
+          X: {Number(payload[0].value).toLocaleString()}
         </p>
         <p className="text-sm font-medium text-[var(--accent-cyan)]">
-          Y: {payload[1].value.toLocaleString()}
+          Y: {Number(payload[1].value).toLocaleString()}
         </p>
       </div>
     );

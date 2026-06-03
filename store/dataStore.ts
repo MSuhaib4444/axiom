@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { ParsedFile, DataStats, SheetData, Column } from '@/types/data';
 
+export type UploadStage = 'idle' | 'reading' | 'parsing' | 'analyzing' | 'done' | 'error';
+
 interface DataState {
   file: ParsedFile | null;
   activeSheet: string | null;
@@ -10,6 +12,11 @@ interface DataState {
   stats: DataStats | null;
   isLoading: boolean;
   error: string | null;
+  
+  // File Upload Global Progress
+  uploadStage: UploadStage;
+  uploadProgress: number;
+  uploadFileName: string | null;
 
   // Actions
   setFile: (file: ParsedFile) => void;
@@ -21,6 +28,9 @@ interface DataState {
   setError: (error: string | null) => void;
   clearFile: () => void;
   setIsLoading: (isLoading: boolean) => void;
+  setUploadStage: (stage: UploadStage) => void;
+  setUploadProgress: (progress: number) => void;
+  setUploadFileName: (name: string | null) => void;
 
   // Selectors
   getActiveSheetData: () => SheetData | null;
@@ -36,6 +46,9 @@ export const useDataStore = create<DataState>()(
     stats: null,
     isLoading: false,
     error: null,
+    uploadStage: 'idle',
+    uploadProgress: 0,
+    uploadFileName: null,
 
     setFile: (file) => set((state) => {
       state.file = file;
@@ -93,6 +106,18 @@ export const useDataStore = create<DataState>()(
 
     setIsLoading: (isLoading) => set((state) => {
       state.isLoading = isLoading;
+    }),
+
+    setUploadStage: (stage) => set((state) => {
+      state.uploadStage = stage;
+    }),
+
+    setUploadProgress: (progress) => set((state) => {
+      state.uploadProgress = progress;
+    }),
+
+    setUploadFileName: (name) => set((state) => {
+      state.uploadFileName = name;
     }),
 
     getActiveSheetData: () => {

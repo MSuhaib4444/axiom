@@ -2,13 +2,10 @@
 
 import React from 'react';
 import { useDataStore } from '@/store/dataStore';
-import { useAIStore } from '@/store/aiStore';
 import { formatBytes } from '@/lib/utils';
-import { cn } from '@/lib/utils';
 
 export const StatusBar: React.FC = () => {
-  const { file, activeSheet, getActiveSheetData, selectedColumns } = useDataStore();
-  const { isThinking } = useAIStore();
+  const { file, getActiveSheetData, selectedColumns } = useDataStore();
   
   const activeData = getActiveSheetData();
 
@@ -28,8 +25,6 @@ export const StatusBar: React.FC = () => {
   const rowCount = activeData?.rowCount ?? 0;
   const colCount = activeData?.columnCount ?? 0;
   const selectedCount = selectedColumns.length;
-  // Parse time is not explicitly in ParsedFile by default, but we can fake it or just not show it unless `file.parsedAt` is really recent.
-  // We'll focus on the required basic stats.
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 h-7 glass-heavy border-t border-[var(--glass-border)] z-40 flex items-center justify-between px-4 text-[11px] font-mono text-[var(--text-secondary)] select-none">
@@ -66,27 +61,6 @@ export const StatusBar: React.FC = () => {
             </div>
           </>
         )}
-      </div>
-
-      {/* Right Section: AI Status */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-2">
-          {isThinking ? (
-            <>
-              <span className="text-[10px] tracking-widest uppercase text-[var(--accent-cyan)] animate-pulse">
-                Thinking...
-              </span>
-              <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-cyan)] animate-ping" />
-            </>
-          ) : (
-            <>
-              <span className="text-[10px] tracking-widest uppercase opacity-60">
-                AI Ready
-              </span>
-              <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-green)] shadow-[0_0_8px_var(--accent-green-glow)]" />
-            </>
-          )}
-        </div>
       </div>
     </footer>
   );

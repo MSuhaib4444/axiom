@@ -51,8 +51,8 @@ export const DataGrid: React.FC = () => {
 
     if (sortConfig) {
       rows = [...rows].sort((a, b) => {
-        const valA = a[sortConfig.key];
-        const valB = b[sortConfig.key];
+        const valA = (a as Record<string, any>)[sortConfig.key];
+        const valB = (b as Record<string, any>)[sortConfig.key];
         
         if (valA === null || valA === undefined) return 1;
         if (valB === null || valB === undefined) return -1;

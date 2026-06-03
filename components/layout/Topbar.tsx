@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useUIStore, ViewType } from '@/store/uiStore';
 import { useDataStore } from '@/store/dataStore';
 import { useRouter, usePathname } from 'next/navigation';
@@ -9,6 +9,7 @@ import { GlassSelect } from '../ui/GlassSelect';
 import { GlassButton } from '../ui/GlassButton';
 import { LayoutGrid, BarChart2, Activity, MessageSquare, FileText, Command, Upload, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFileUpload } from '@/hooks/useFileUpload';
 
 export const Topbar: React.FC = () => {
   const { activeView, setActiveView, isMobile, openModal, toggleCommandPalette } = useUIStore();
@@ -16,6 +17,20 @@ export const Topbar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { handleFile } = useFileUpload();
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      await handleFile(selectedFile);
+    }
+  };
 
   const handleViewChange = (view: ViewType) => {
     setActiveView(view);
@@ -87,36 +102,48 @@ export const Topbar: React.FC = () => {
 
       {/* Center Section: Navigation */}
       <div className="flex-1 flex justify-center max-w-lg">
-        {isMobile ? (
-          <div className="w-40">
-            <GlassSelect
+        {file && (
+          isMobile ? (
+            <div className="w-40">
+              <GlassSelect
+                value={activeView}
+                onValueChange={(val) => handleViewChange(val as ViewType)}
+                options={viewOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+              />
+            </div>
+          ) : (
+            <GlassTabs
+              tabs={viewOptions}
               value={activeView}
               onValueChange={(val) => handleViewChange(val as ViewType)}
-              options={viewOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+              className="w-auto"
+              listClassName="border-none space-x-1"
             />
-          </div>
-        ) : (
-          <GlassTabs
-            tabs={viewOptions}
-            value={activeView}
-            onValueChange={(val) => handleViewChange(val as ViewType)}
-            className="w-auto"
-            listClassName="border-none space-x-1"
-          />
+          )
         )}
       </div>
 
       {/* Right Section: Actions */}
       <div className="flex items-center justify-end gap-2 min-w-[200px]">
-        <GlassButton
-          variant="primary"
-          size="sm"
-          onClick={() => openModal('upload')}
-          className="hidden sm:flex"
-        >
-          <Upload className="w-4 h-4" />
-          <span>Upload</span>
-        </GlassButton>
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handleFileChange} 
+          className="hidden" 
+          accept=".xlsx,.xls,.csv,.tsv,.ods,.xlsm"
+        />
+
+        {!file && (
+          <GlassButton
+            variant="primary"
+            size="sm"
+            onClick={handleUploadClick}
+            className="hidden sm:flex"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Upload</span>
+          </GlassButton>
+        )}
 
         <GlassButton
           variant="ghost"

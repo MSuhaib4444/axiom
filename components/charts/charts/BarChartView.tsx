@@ -9,8 +9,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer,
-  Cell
+  ResponsiveContainer
 } from 'recharts';
 import { truncate } from '@/lib/utils';
 

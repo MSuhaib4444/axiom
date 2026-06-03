@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Outfit, DM_Sans, JetBrains_Mono } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { CustomLoader } from '@/components/ui/CustomLoader';
 import './globals.css';
 
 const fontDisplay = Outfit({
@@ -37,6 +38,7 @@ export default function RootLayout({
       <body style={{ backgroundColor: 'var(--bg-space)' }}>
         <ErrorBoundary>
           {children}
+          <CustomLoader />
         </ErrorBoundary>
         <Toaster
           position="top-right"

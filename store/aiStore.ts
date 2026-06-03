@@ -28,6 +28,7 @@ interface AIState {
   insights: AIInsight[];
   dataStory: string | null;
   isThinking: boolean;
+  isChatThinking: boolean;
   streamingMessageId: string | null;
   suggestedPrompts: string[];
   queryHistory: string[];
@@ -39,6 +40,7 @@ interface AIState {
   clearInsights: () => void;
   setDataStory: (story: string | null) => void;
   setIsThinking: (isThinking: boolean) => void;
+  setIsChatThinking: (isChatThinking: boolean) => void;
   setStreamingMessageId: (id: string | null) => void;
   setSuggestedPrompts: (prompts: string[]) => void;
   addQueryToHistory: (query: string) => void;
@@ -58,6 +60,7 @@ export const useAIStore = create<AIState>()(
     insights: [],
     dataStory: null,
     isThinking: false,
+    isChatThinking: false,
     streamingMessageId: null,
     suggestedPrompts: [],
     queryHistory: [],
@@ -99,6 +102,9 @@ export const useAIStore = create<AIState>()(
 
     setIsThinking: (isThinking) => set((state) => {
       state.isThinking = isThinking;
+    }),
+    setIsChatThinking: (isChatThinking) => set((state) => {
+      state.isChatThinking = isChatThinking;
     }),
 
     setStreamingMessageId: (id) => set((state) => {

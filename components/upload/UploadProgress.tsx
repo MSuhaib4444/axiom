@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { File, CheckCircle, Database, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type UploadStage = 'idle' | 'reading' | 'parsing' | 'analyzing' | 'done';
+export type UploadStage = 'idle' | 'reading' | 'parsing' | 'analyzing' | 'done' | 'error';
 
 export interface UploadProgressProps {
   stage: UploadStage;
