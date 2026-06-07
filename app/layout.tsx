@@ -3,6 +3,7 @@ import { Outfit, DM_Sans, JetBrains_Mono } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { CustomLoader } from '@/components/ui/CustomLoader';
+import { ThemeProvider } from '@/components/ThemeProvider';
 import './globals.css';
 
 const fontDisplay = Outfit({
@@ -36,21 +37,23 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${fontDisplay.variable} ${fontBody.variable} ${fontMono.variable}`}>
       <body style={{ backgroundColor: 'var(--bg-space)' }}>
-        <ErrorBoundary>
-          {children}
-          <CustomLoader />
-        </ErrorBoundary>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            style: {
-              background: 'var(--bg-card)',
-              border: '1px solid var(--glass-border)',
-              color: 'var(--text-primary)',
-              backdropFilter: 'blur(24px)',
-            },
-          }}
-        />
+        <ThemeProvider>
+          <ErrorBoundary>
+            {children}
+            <CustomLoader />
+          </ErrorBoundary>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              style: {
+                background: 'var(--bg-card)',
+                border: '1px solid var(--glass-border)',
+                color: 'var(--text-primary)',
+                backdropFilter: 'blur(24px)',
+              },
+            }}
+          />
+        </ThemeProvider>
       </body>
     </html>
   );

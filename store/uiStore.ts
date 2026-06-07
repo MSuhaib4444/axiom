@@ -17,7 +17,7 @@ interface UIState {
   sidebarCollapsed: boolean;
   rightPanelWidth: number;
   isMobile: boolean;
-  theme: 'dark';
+  theme: 'dark' | 'light';
 
   // Actions
   setActiveView: (view: ViewType) => void;
@@ -28,6 +28,7 @@ interface UIState {
   setSidebarCollapsed: (collapsed: boolean) => void;
   setRightPanelWidth: (width: number) => void;
   setIsMobile: (isMobile: boolean) => void;
+  toggleTheme: () => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -75,6 +76,10 @@ export const useUIStore = create<UIState>()(
 
     setIsMobile: (isMobile) => set((state) => {
       state.isMobile = isMobile;
-    })
+    }),
+
+    toggleTheme: () => set((state) => {
+      state.theme = state.theme === 'dark' ? 'light' : 'dark';
+    }),
   }))
 );

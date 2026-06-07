@@ -10,6 +10,7 @@ import { GlassButton } from '../ui/GlassButton';
 import { LayoutGrid, BarChart2, Activity, MessageSquare, FileText, Command, Upload, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFileUpload } from '@/hooks/useFileUpload';
+import { ThemeToggle } from '../ui/ThemeToggle';
 
 export const Topbar: React.FC = () => {
   const { activeView, setActiveView, isMobile, openModal, toggleCommandPalette } = useUIStore();
@@ -74,7 +75,7 @@ export const Topbar: React.FC = () => {
       className={cn(
         "fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-4 transition-all duration-300",
         isScrolled 
-          ? "bg-[#04040f]/95 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.5)] supports-[backdrop-filter]:bg-[#04040f]/80" 
+          ? "bg-[var(--bg-space)]/95 backdrop-blur-xl border-b border-[var(--glass-border)] shadow-[0_4px_30px_rgba(0,0,0,0.3)] supports-[backdrop-filter]:bg-[var(--bg-space)]/80" 
           : "bg-transparent border-b border-transparent"
       )}
     >
@@ -86,13 +87,13 @@ export const Topbar: React.FC = () => {
           </span>
         </div>
         {file ? (
-          <div className="hidden sm:flex items-center px-2 py-1 rounded-md bg-white/5 border border-white/10">
+          <div className="hidden sm:flex items-center px-2 py-1 rounded-md bg-[var(--glass-bg)] border border-[var(--glass-border)]">
             <span className="text-xs font-medium text-[var(--text-secondary)] truncate max-w-[150px]" title={file.name}>
               {file.name}
             </span>
           </div>
         ) : (
-          <div className="hidden sm:flex items-center px-2 py-1 rounded-md bg-white/5 border border-white/10 opacity-50">
+          <div className="hidden sm:flex items-center px-2 py-1 rounded-md bg-[var(--glass-bg)] border border-[var(--glass-border)] opacity-50">
             <span className="text-xs font-medium text-[var(--text-secondary)]">
               No file loaded
             </span>
@@ -152,7 +153,7 @@ export const Topbar: React.FC = () => {
           className="hidden md:flex items-center gap-2 text-[var(--text-secondary)] hover:text-white"
           title="Command Palette (⌘K)"
         >
-          <span className="text-xs border border-white/20 rounded px-1.5 py-0.5 opacity-60">⌘ K</span>
+          <span className="text-xs border border-[var(--glass-border-strong)] rounded px-1.5 py-0.5 opacity-70">⌘ K</span>
         </GlassButton>
 
         <GlassButton
@@ -160,10 +161,12 @@ export const Topbar: React.FC = () => {
           size="sm"
           className="text-[var(--text-secondary)] hover:text-[var(--accent-amber)] transition-colors"
           title="Star on GitHub"
-          onClick={() => window.open('https://github.com', '_blank')}
+          onClick={() => window.open('https://github.com/msuhaib4444/axiom', '_blank')}
         >
           <Star className="w-4 h-4" />
         </GlassButton>
+
+        <ThemeToggle />
       </div>
     </header>
   );
