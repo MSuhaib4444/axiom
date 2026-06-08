@@ -52,7 +52,7 @@ const CHART_TYPES: { type: ChartType; label: string; icon: React.ReactNode }[] =
 
 export default function VisualizePage() {
   const router = useRouter();
-  const { file, getActiveSheetData, selectedColumns } = useDataStore();
+  const { file, getActiveSheetData, selectedColumns, isRestoring } = useDataStore();
   const { insights } = useAIStore();
   const sheet = getActiveSheetData();
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -62,10 +62,10 @@ export default function VisualizePage() {
 
   // Redirect if no file
   useEffect(() => {
-    if (!file) {
+    if (!isRestoring && !file) {
       router.replace('/');
     }
-  }, [file, router]);
+  }, [file, isRestoring, router]);
 
   const columns = useMemo(() => {
     if (!sheet) return [];
@@ -110,7 +110,14 @@ export default function VisualizePage() {
     return insights.find(i => i.type === 'recommendation')?.description || null;
   }, [insights]);
 
-  if (!file || !sheet) return null;
+  if (isRestoring || !file || !sheet) {
+    return (
+      <div className="h-screen bg-[var(--bg-space)] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--accent-cyan)]" />
+        <span className="text-sm text-[var(--text-secondary)] font-medium">Restoring session...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-[var(--bg-space)] overflow-hidden">

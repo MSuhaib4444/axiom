@@ -195,7 +195,7 @@ export const DataGrid: React.FC = () => {
             <div style={{ width: table.getTotalSize(), minWidth: '100%' }}>
               {/* Header Row */}
               <div 
-                className="flex border-b border-[var(--glass-border)] bg-[rgba(13,13,34,0.95)] sticky top-0 z-10"
+                className="flex border-b border-[var(--glass-border)] bg-[var(--bg-surface)] sticky top-0 z-10"
                 style={{ height: 36, width: table.getTotalSize() }}
               >
                 {table.getFlatHeaders().map(header => (

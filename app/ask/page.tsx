@@ -15,7 +15,7 @@ import { Loader2 } from 'lucide-react';
 function AskPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { file } = useDataStore();
+  const { file, isRestoring } = useDataStore();
   const { isChatThinking } = useAIStore();
   const { sidebarCollapsed, isMobile, setActiveView } = useUIStore();
   const [initialized, setInitialized] = useState(false);
@@ -29,7 +29,7 @@ function AskPageContent() {
   }, [setActiveView]);
 
   useEffect(() => {
-    if (!file) {
+    if (!isRestoring && !file) {
       router.replace('/');
       return;
     }
@@ -38,9 +38,16 @@ function AskPageContent() {
     if (initialQuery && !initialized && !isChatThinking) {
       setInitialized(true);
     }
-  }, [file, router, searchParams, initialized, isChatThinking]);
+  }, [file, isRestoring, router, searchParams, initialized, isChatThinking]);
 
-  if (!file) return null;
+  if (isRestoring || !file) {
+    return (
+      <div className="h-screen bg-[var(--bg-space)] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--accent-cyan)]" />
+        <span className="text-sm text-[var(--text-secondary)] font-medium">Restoring session...</span>
+      </div>
+    );
+  }
 
   const sidebarW = isMobile ? 0 : sidebarCollapsed ? 48 : 240;
 

@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { CustomLoader } from '@/components/ui/CustomLoader';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { MemoryInitializer } from '@/components/MemoryInitializer';
 import './globals.css';
 
 const fontDisplay = Outfit({
@@ -38,6 +39,7 @@ export default function RootLayout({
     <html lang="en" className={`${fontDisplay.variable} ${fontBody.variable} ${fontMono.variable}`}>
       <body style={{ backgroundColor: 'var(--bg-space)' }}>
         <ThemeProvider>
+          <MemoryInitializer />
           <ErrorBoundary>
             {children}
             <CustomLoader />
@@ -58,3 +60,4 @@ export default function RootLayout({
     </html>
   );
 }
+

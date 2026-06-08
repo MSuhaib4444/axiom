@@ -21,7 +21,7 @@ import { motion } from 'framer-motion';
 
 export default function AnalyzePage() {
     const router = useRouter();
-    const { file, getActiveSheetData } = useDataStore();
+    const { file, getActiveSheetData, isRestoring } = useDataStore();
     const sheet = getActiveSheetData();
     const { sidebarCollapsed, isMobile, setIsMobile, setActiveView } = useUIStore();
 
@@ -39,10 +39,10 @@ export default function AnalyzePage() {
     }, [setIsMobile]);
 
     useEffect(() => {
-        if (!file) {
+        if (!isRestoring && !file) {
             router.replace('/');
         }
-    }, [file, router]);
+    }, [file, isRestoring, router]);
 
     const [activeSection, setActiveSection] = useState('statistics');
     const [selectedColumn, setSelectedColumn] = useState('');
@@ -102,7 +102,14 @@ export default function AnalyzePage() {
         stream({ sheet });
     };
 
-    if (!file) return null;
+    if (isRestoring || !file) {
+        return (
+            <div className="h-screen bg-[var(--bg-space)] flex flex-col items-center justify-center gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-[var(--accent-cyan)]" />
+                <span className="text-sm text-[var(--text-secondary)] font-medium">Restoring session...</span>
+            </div>
+        );
+    }
 
     const navItems = [
         { id: 'statistics', label: 'Statistics' },

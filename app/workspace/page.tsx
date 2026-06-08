@@ -25,6 +25,7 @@ import {
   MessageSquare,
   FileText,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -204,7 +205,7 @@ function MiniReportView() {
 // ─────────────────────────────────────────────
 export default function WorkspacePage() {
   const router = useRouter();
-  const { file } = useDataStore();
+  const { file, isRestoring } = useDataStore();
   
   const {
     activeView,
@@ -221,10 +222,10 @@ export default function WorkspacePage() {
 
   // Guard: redirect to landing if no file is loaded
   useEffect(() => {
-    if (!file) {
+    if (!isRestoring && !file) {
       router.replace('/');
     }
-  }, [file, router]);
+  }, [file, isRestoring, router]);
 
   // Responsive: detect mobile breakpoint
   useEffect(() => {
@@ -241,7 +242,14 @@ export default function WorkspacePage() {
   const sidebarW = isMobile ? 0 : sidebarCollapsed ? 48 : 240;
 
   // Don't render anything while redirecting
-  if (!file) return null;
+  if (isRestoring || !file) {
+    return (
+      <div className="h-screen bg-[var(--bg-space)] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--accent-cyan)]" />
+        <span className="text-sm text-[var(--text-secondary)] font-medium">Restoring session...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen overflow-hidden bg-[var(--bg-space)] relative">

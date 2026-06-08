@@ -134,17 +134,15 @@ export const Topbar: React.FC = () => {
           accept=".xlsx,.xls,.csv,.tsv,.ods,.xlsm"
         />
 
-        {!file && (
-          <GlassButton
-            variant="primary"
-            size="sm"
-            onClick={handleUploadClick}
-            className="hidden sm:flex"
-          >
-            <Upload className="w-4 h-4" />
-            <span>Upload</span>
-          </GlassButton>
-        )}
+        <GlassButton
+          variant={file ? "ghost" : "primary"}
+          size="sm"
+          onClick={handleUploadClick}
+          className="hidden sm:flex"
+        >
+          <Upload className="w-4 h-4" />
+          <span>{file ? "Upload New" : "Upload"}</span>
+        </GlassButton>
 
         <GlassButton
           variant="ghost"

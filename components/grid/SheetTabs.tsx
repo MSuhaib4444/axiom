@@ -11,7 +11,7 @@ export const SheetTabs: React.FC = () => {
   if (!file || file.sheets.length === 0) return null;
 
   return (
-    <div className="w-full h-10 border-b border-[var(--glass-border)] flex items-end px-2 overflow-x-auto no-scrollbar glass-heavy bg-[rgba(13,13,34,0.9)]">
+    <div className="w-full h-10 border-b border-[var(--glass-border)] flex items-end px-2 overflow-x-auto no-scrollbar glass-heavy bg-[var(--bg-panel)]">
       <div className="flex space-x-1 shrink-0">
         {file.sheets.map((sheet) => {
           const isActive = activeSheet === sheet.name;

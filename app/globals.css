@@ -219,3 +219,145 @@
     border-radius: 4px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   LIGHT THEME — GLOBAL TAILWIND CLASS OVERRIDES
+   These rules correct hardcoded Tailwind utility classes that don't
+   respond to CSS variables. Scoped to [data-theme="light"] so dark
+   mode is completely untouched.
+═══════════════════════════════════════════════════════════════════ */
+
+/* ── Text color overrides ─────────────────────────────────────────── */
+
+/* text-white → dark primary text */
+[data-theme="light"] .text-white {
+  color: rgba(15, 15, 40, 0.95) !important;
+}
+
+/* text-slate-100 / 200 — near-white, treat as primary */
+[data-theme="light"] .text-slate-100,
+[data-theme="light"] .text-slate-200 {
+  color: rgba(15, 15, 40, 0.90) !important;
+}
+
+/* text-slate-300 / 400 — muted, treat as secondary */
+[data-theme="light"] .text-slate-300,
+[data-theme="light"] .text-slate-400 {
+  color: rgba(15, 15, 40, 0.58) !important;
+}
+
+/* text-slate-500 / 600 — dimmer muted, treat as tertiary */
+[data-theme="light"] .text-slate-500,
+[data-theme="light"] .text-slate-600 {
+  color: rgba(15, 15, 40, 0.42) !important;
+}
+
+/* hover:text-white → hover to dark primary */
+[data-theme="light"] .hover\:text-white:hover {
+  color: rgba(15, 15, 40, 0.95) !important;
+}
+
+/* hover:text-slate-300 */
+[data-theme="light"] .hover\:text-slate-300:hover {
+  color: rgba(15, 15, 40, 0.75) !important;
+}
+
+/* text-cyan-300 (used in code spans) */
+[data-theme="light"] .text-cyan-300 {
+  color: var(--accent-cyan) !important;
+}
+
+/* ── Background overrides ─────────────────────────────────────────── */
+
+/* bg-black/* → lavender-tinted surface */
+[data-theme="light"] .bg-black\/5  { background-color: rgba(108, 99, 255, 0.03) !important; }
+[data-theme="light"] .bg-black\/10 { background-color: rgba(108, 99, 255, 0.05) !important; }
+[data-theme="light"] .bg-black\/20 { background-color: rgba(108, 99, 255, 0.07) !important; }
+[data-theme="light"] .bg-black\/30 { background-color: rgba(108, 99, 255, 0.09) !important; }
+[data-theme="light"] .bg-black\/40 { background-color: rgba(108, 99, 255, 0.08) !important; }
+[data-theme="light"] .bg-black\/50 { background-color: rgba(108, 99, 255, 0.10) !important; }
+[data-theme="light"] .bg-black\/60 { background-color: rgba(108, 99, 255, 0.12) !important; }
+[data-theme="light"] .bg-black\/75 { background-color: rgba(240, 240, 252, 0.92) !important; }
+
+/* bg-white/* → frosted violet-tinted white */
+[data-theme="light"] .bg-white\/\[0\.02\]   { background-color: rgba(255, 255, 255, 0.70) !important; }
+[data-theme="light"] .bg-white\/\[0\.025\]  { background-color: rgba(255, 255, 255, 0.72) !important; }
+[data-theme="light"] .bg-white\/\[0\.05\]   { background-color: rgba(255, 255, 255, 0.74) !important; }
+[data-theme="light"] .bg-white\/5           { background-color: rgba(255, 255, 255, 0.60) !important; }
+[data-theme="light"] .bg-white\/10          { background-color: rgba(255, 255, 255, 0.75) !important; }
+[data-theme="light"] .bg-white\/15          { background-color: rgba(255, 255, 255, 0.80) !important; }
+[data-theme="light"] .bg-white\/20          { background-color: rgba(255, 255, 255, 0.85) !important; }
+
+/* hover:bg-white/* overrides */
+[data-theme="light"] .hover\:bg-white\/5:hover  { background-color: rgba(108, 99, 255, 0.08) !important; }
+[data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(108, 99, 255, 0.12) !important; }
+
+/* hover:bg-black/* overrides */
+[data-theme="light"] .hover\:bg-black\/60:hover { background-color: rgba(108, 99, 255, 0.14) !important; }
+
+/* focus:bg-black/* overrides */
+[data-theme="light"] .focus\:bg-black\/40:focus { background-color: rgba(108, 99, 255, 0.10) !important; }
+
+/* ── Border overrides ─────────────────────────────────────────────── */
+
+/* border-white/* → violet-tinted borders */
+[data-theme="light"] .border-white\/5  { border-color: rgba(108, 99, 255, 0.10) !important; }
+[data-theme="light"] .border-white\/6  { border-color: rgba(108, 99, 255, 0.10) !important; }
+[data-theme="light"] .border-white\/8  { border-color: rgba(108, 99, 255, 0.12) !important; }
+[data-theme="light"] .border-white\/10 { border-color: rgba(108, 99, 255, 0.15) !important; }
+[data-theme="light"] .border-white\/12 { border-color: rgba(108, 99, 255, 0.18) !important; }
+[data-theme="light"] .border-white\/15 { border-color: rgba(108, 99, 255, 0.20) !important; }
+[data-theme="light"] .border-white\/20 { border-color: rgba(108, 99, 255, 0.25) !important; }
+
+/* hover:border-white/* */
+[data-theme="light"] .hover\:border-white\/10:hover { border-color: rgba(108, 99, 255, 0.22) !important; }
+
+/* ── Divide overrides ─────────────────────────────────────────────── */
+[data-theme="light"] .divide-white\/10 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(108, 99, 255, 0.15) !important;
+}
+
+/* ── Backdrop / overlay overrides ─────────────────────────────────── */
+/* Modal / drawer overlays — keep dark for legibility */
+[data-theme="light"] .backdrop-blur-sm { backdrop-filter: blur(8px); }
+
+/* ── Input select overrides ───────────────────────────────────────── */
+/* Native <select> elements with hardcoded bg-black */
+[data-theme="light"] select.bg-black\/40,
+[data-theme="light"] select[class*="bg-black"] {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  color: rgba(15, 15, 40, 0.95) !important;
+  border-color: rgba(108, 99, 255, 0.25) !important;
+}
+
+[data-theme="light"] select option {
+  background-color: #f0f0fc;
+  color: rgba(15, 15, 40, 0.95);
+}
+
+/* ── pre / code blocks ────────────────────────────────────────────── */
+[data-theme="light"] pre,
+[data-theme="light"] code {
+  background-color: rgba(230, 230, 248, 0.85) !important;
+  border-color: rgba(108, 99, 255, 0.15) !important;
+  color: rgba(15, 15, 40, 0.90) !important;
+}
+
+/* ── Table row zebra striping ─────────────────────────────────────── */
+[data-theme="light"] .even\:bg-black\/10:nth-child(even),
+[data-theme="light"] .odd\:bg-black\/10:nth-child(odd) {
+  background-color: rgba(108, 99, 255, 0.04) !important;
+}
+
+/* ── Data grid row alternating bg ─────────────────────────────────── */
+[data-theme="light"] [class*="bg-black/10"] {
+  background-color: rgba(108, 99, 255, 0.04) !important;
+}
+
+/* ── Smooth transitions on all overridden elements ─────────────────── */
+[data-theme="light"] * {
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease;
+}

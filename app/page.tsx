@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Topbar } from '@/components/layout/Topbar';
 import { DropZone } from '@/components/upload/DropZone';
@@ -9,6 +9,8 @@ import { UploadProgress } from '@/components/upload/UploadProgress';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { useFileUpload } from '@/hooks/useFileUpload';
+import { useDataStore } from '@/store/dataStore';
+import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { 
   BrainCircuit, 
@@ -16,7 +18,8 @@ import {
   MessageCircle, 
   Activity, 
   Zap, 
-  Download 
+  Download,
+  Loader2
 } from 'lucide-react';
 
 const containerVariants = {
@@ -36,7 +39,25 @@ const itemVariants = {
 
 export default function LandingPage() {
   const { handleFile, stage, progress, error, clearError } = useFileUpload();
+  const { file, isRestoring } = useDataStore();
+  const router = useRouter();
   const [isDemoLoading, setIsDemoLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isRestoring && file) {
+      router.replace('/workspace');
+    }
+  }, [file, isRestoring, router]);
+
+  if (isRestoring || file) {
+    return (
+      <div className="h-screen bg-[var(--bg-space)] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--accent-cyan)]" />
+        <span className="text-sm text-[var(--text-secondary)] font-medium">Loading Axiom...</span>
+      </div>
+    );
+  }
+
 
   const handleDemoClick = async () => {
     setIsDemoLoading(true);
@@ -194,7 +215,7 @@ export default function LandingPage() {
                   variants={itemVariants as any}
                   className="flex flex-col items-center justify-center text-center px-4"
                 >
-                  <div className="text-4xl md:text-5xl font-display font-bold text-white mb-2 drop-shadow-[0_0_15px_var(--accent-violet-glow)]">
+                  <div className="text-4xl md:text-5xl font-display font-bold text-[var(--text-primary)] mb-2 drop-shadow-[0_0_15px_var(--accent-violet-glow)]">
                     {stat.number}
                   </div>
                   <div className="text-sm md:text-base text-[var(--text-secondary)] uppercase tracking-wider font-medium">

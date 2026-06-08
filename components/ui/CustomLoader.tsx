@@ -66,7 +66,7 @@ export const CustomLoader: React.FC = () => {
           </div>
 
           {/* Title / App Name */}
-          <h2 className="text-2xl font-display font-bold text-white tracking-wide mb-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+          <h2 className="text-2xl font-display font-bold text-white tracking-wide mb-2 drop-shadow-[0_0_15px_var(--accent-violet-glow)]">
             AXIOM Data Engine
           </h2>
 

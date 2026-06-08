@@ -131,7 +131,12 @@ export const CommandPalette: React.FC = () => {
       icon: <Upload className="w-4 h-4" />,
       group: 'Actions',
       action: () => {
-        openModal('upload');
+        if (typeof document !== 'undefined') {
+          const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+          if (fileInput) {
+            fileInput.click();
+          }
+        }
         toggleCommandPalette();
       },
     },

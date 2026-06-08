@@ -44,7 +44,7 @@ function ReportPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  const { file, getActiveSheetData } = useDataStore();
+  const { file, getActiveSheetData, isRestoring } = useDataStore();
   const activeSheetData = getActiveSheetData();
 
   // Retrieve initial tone from search query, fallback to executive
@@ -60,10 +60,10 @@ function ReportPageContent() {
 
   // Redirect if no file is present
   useEffect(() => {
-    if (!file) {
+    if (!isRestoring && !file) {
       router.push('/');
     }
-  }, [file, router]);
+  }, [file, isRestoring, router]);
 
   // Clean up timer on unmount
   useEffect(() => {
@@ -109,8 +109,13 @@ function ReportPageContent() {
     });
   };
 
-  if (!file) {
-    return null;
+  if (isRestoring || !file) {
+    return (
+      <div className="h-screen bg-[var(--bg-space)] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--accent-cyan)]" />
+        <span className="text-sm text-[var(--text-secondary)] font-medium">Restoring session...</span>
+      </div>
+    );
   }
 
   return (

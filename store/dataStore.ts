@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { ParsedFile, DataStats, SheetData, Column } from '@/types/data';
+import { saveFileToDB, deleteFileFromDB } from '@/lib/db';
 
 export type UploadStage = 'idle' | 'reading' | 'parsing' | 'analyzing' | 'done' | 'error';
 
@@ -13,6 +14,9 @@ interface DataState {
   isLoading: boolean;
   error: string | null;
   
+  // Restore State
+  isRestoring: boolean;
+
   // File Upload Global Progress
   uploadStage: UploadStage;
   uploadProgress: number;
@@ -20,6 +24,8 @@ interface DataState {
 
   // Actions
   setFile: (file: ParsedFile) => void;
+  restoreFile: (file: ParsedFile) => void;
+  setIsRestoring: (isRestoring: boolean) => void;
   setActiveSheet: (sheetName: string) => void;
   toggleColumnSelection: (columnKey: string) => void;
   clearColumnSelection: () => void;
@@ -46,6 +52,7 @@ export const useDataStore = create<DataState>()(
     stats: null,
     isLoading: false,
     error: null,
+    isRestoring: true,
     uploadStage: 'idle',
     uploadProgress: 0,
     uploadFileName: null,
@@ -61,6 +68,30 @@ export const useDataStore = create<DataState>()(
       state.selectedColumns = [];
       state.highlightedRows = [];
       state.error = null;
+
+      // Save to IndexedDB
+      if (typeof window !== 'undefined') {
+        saveFileToDB(file).catch((err) => {
+          console.error('Failed to save file to IndexedDB:', err);
+        });
+      }
+    }),
+
+    restoreFile: (file) => set((state) => {
+      state.file = file;
+      const firstSheet = file.sheets[0];
+      if (firstSheet) {
+        state.activeSheet = firstSheet.name;
+      } else {
+        state.activeSheet = null;
+      }
+      state.selectedColumns = [];
+      state.highlightedRows = [];
+      state.error = null;
+    }),
+
+    setIsRestoring: (isRestoring) => set((state) => {
+      state.isRestoring = isRestoring;
     }),
 
     setActiveSheet: (sheetName) => set((state) => {
@@ -102,6 +133,13 @@ export const useDataStore = create<DataState>()(
       state.stats = null;
       state.error = null;
       state.isLoading = false;
+
+      // Delete from IndexedDB
+      if (typeof window !== 'undefined') {
+        deleteFileFromDB().catch((err) => {
+          console.error('Failed to delete file from IndexedDB:', err);
+        });
+      }
     }),
 
     setIsLoading: (isLoading) => set((state) => {
@@ -133,3 +171,4 @@ export const useDataStore = create<DataState>()(
     }
   }))
 );
+
