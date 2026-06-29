@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 export function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith('/api/gemini/')) {
+  if (request.nextUrl.pathname.startsWith('/api/openrouter/')) {
     const ip = request.headers.get('x-forwarded-for') || 'anonymous';
     const now = Date.now();
     const windowMs = 60 * 1000;

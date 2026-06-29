@@ -68,6 +68,50 @@ export function getColumnTypeIcon(type: ColumnType): string {
   return map[type] || '?';
 }
 
+/** Converts a cell value to a chart-safe axis label (never returns a Date object). */
+export function toChartAxisValue(
+  value: CellValue,
+  columnType?: ColumnType,
+  options?: { sortable?: boolean }
+): string | number {
+  if (value === null || value === undefined) return '';
+
+  const isDate = columnType === 'date' || value instanceof Date;
+  if (isDate) {
+    if (options?.sortable) {
+      const iso = formatDate(value, 'iso');
+      return iso.split('T')[0] ?? iso;
+    }
+    return formatDate(value, 'short');
+  }
+
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  return String(value);
+}
+
+/** Converts a cell value to a numeric chart measure. */
+export function toChartNumericValue(value: CellValue, columnType?: ColumnType): number {
+  if (value === null || value === undefined) return NaN;
+
+  if (columnType === 'date' || value instanceof Date) {
+    const d = value instanceof Date ? value : new Date(String(value));
+    return Number.isNaN(d.getTime()) ? NaN : d.getTime();
+  }
+
+  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+/** Safely formats any Recharts tooltip / axis label for React rendering. */
+export function formatChartLabel(label: unknown): string {
+  if (label === null || label === undefined) return '';
+  if (label instanceof Date) return formatDate(label, 'short');
+  if (typeof label === 'object') return String(label);
+  return String(label);
+}
+
 export function formatCellValue(value: CellValue, type: ColumnType): string {
   if (value === null || value === undefined || value === '') return '—';
 

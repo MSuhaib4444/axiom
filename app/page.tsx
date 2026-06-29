@@ -81,7 +81,7 @@ export default function LandingPage() {
     {
       icon: <BrainCircuit className="w-6 h-6 text-[var(--accent-violet)]" />,
       title: 'AI Analysis',
-      desc: 'Instant insights powered by Gemini 2.0 Flash'
+      desc: 'Instant insights powered by OpenRouter Free'
     },
     {
       icon: <BarChart2 className="w-6 h-6 text-[var(--accent-cyan)]" />,
@@ -260,7 +260,7 @@ export default function LandingPage() {
               GitHub
             </a>
             <span>•</span>
-            <span>Built with Next.js + Gemini</span>
+            <span>Built with Next.js + OpenRouter</span>
           </div>
           <p className="text-xs text-[var(--text-tertiary)]">
             &copy; {new Date().getFullYear()} AXIOM. All rights reserved.

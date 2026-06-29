@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDataStore } from '@/store/dataStore';
@@ -13,17 +14,78 @@ import { CommandPalette } from '@/components/layout/CommandPalette';
 import { useUIStore } from '@/store/uiStore';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassButton } from '@/components/ui/GlassButton';
-import { useGeminiStream } from '@/hooks/useGeminiStream';
+import { useOpenRouterStream } from '@/hooks/useOpenRouterStream';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { toast } from 'react-hot-toast';
-import { Wand2, Loader2 } from 'lucide-react';
+import { 
+  Wand2, 
+  Loader2, 
+  Sparkles, 
+  CheckCircle2, 
+  AlertTriangle, 
+  ArrowUpRight, 
+  BarChart2, 
+  LineChart, 
+  AreaChart as AreaChartIcon, 
+  PieChart as PieChartIcon, 
+  ScatterChart as ScatterChartIcon, 
+  LayoutGrid, 
+  Grid3X3, 
+  GitMerge, 
+  Radar, 
+  BoxSelect, 
+  Activity 
+} from 'lucide-react';
+import { OpenRouterAnalysis } from '@/types/openrouter';
 import { motion } from 'framer-motion';
+
+const ClusteringView = dynamic(
+  () => import('@/components/analysis/ClusteringView').then((m) => m.ClusteringView),
+  { loading: () => <div className="skeleton h-96 w-full rounded-2xl" />, ssr: false }
+);
+
+const RegressionView = dynamic(
+  () => import('@/components/analysis/RegressionView').then((m) => m.RegressionView),
+  { loading: () => <div className="skeleton h-96 w-full rounded-2xl" />, ssr: false }
+);
+const CHART_ICON_MAP: Record<string, React.ReactNode> = {
+  bar: <BarChart2 size={16} />,
+  line: <LineChart size={16} />,
+  area: <AreaChartIcon size={16} />,
+  pie: <PieChartIcon size={16} />,
+  scatter: <ScatterChartIcon size={16} />,
+  heatmap: <Grid3X3 size={16} />,
+  treemap: <LayoutGrid size={16} />,
+  sankey: <GitMerge size={16} />,
+  radar: <Radar size={16} />,
+  boxplot: <BoxSelect size={16} />,
+  waterfall: <Activity size={16} />,
+};
 
 export default function AnalyzePage() {
     const router = useRouter();
     const { file, getActiveSheetData, isRestoring } = useDataStore();
     const sheet = getActiveSheetData();
     const { sidebarCollapsed, isMobile, setIsMobile, setActiveView } = useUIStore();
+
+    const [activeSection, setActiveSection] = useState('statistics');
+    const [selectedColumn, setSelectedColumn] = useState('');
+    const [aiResult, setAiResult] = useState<string | null>(null);
+    const [isAiLoading, setIsAiLoading] = useState(false);
+
+    const parsedAnalysis = React.useMemo(() => {
+        if (!aiResult) return null;
+        try {
+            const jsonMatch = aiResult.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                return JSON.parse(jsonMatch[0]) as OpenRouterAnalysis;
+            }
+            return JSON.parse(aiResult) as OpenRouterAnalysis;
+        } catch (e) {
+            console.error('Failed to parse AI Analysis JSON:', e);
+            return null;
+        }
+    }, [aiResult]);
 
     useEffect(() => {
         setActiveView('analysis');
@@ -43,11 +105,6 @@ export default function AnalyzePage() {
             router.replace('/');
         }
     }, [file, isRestoring, router]);
-
-    const [activeSection, setActiveSection] = useState('statistics');
-    const [selectedColumn, setSelectedColumn] = useState('');
-    const [aiResult, setAiResult] = useState<string | null>(null);
-    const [isAiLoading, setIsAiLoading] = useState(false);
 
     // Register keyboard shortcuts
     useKeyboardShortcuts();
@@ -73,7 +130,7 @@ export default function AnalyzePage() {
 
         const observer = new IntersectionObserver(observerCallback, observerOptions);
         
-        const sections = ['statistics', 'profiler', 'correlation', 'anomalies'];
+        const sections = ['statistics', 'profiler', 'correlation', 'anomalies', 'clustering', 'regression'];
         sections.forEach((id) => {
             const el = document.getElementById(id);
             if (el) observer.observe(el);
@@ -82,8 +139,8 @@ export default function AnalyzePage() {
         return () => observer.disconnect();
     }, [sheet]); // Re-observe if sheet changes/data renders
 
-    const { stream } = useGeminiStream({
-        endpoint: '/api/gemini/analyze',
+    const { stream } = useOpenRouterStream({
+        endpoint: '/api/openrouter/analyze',
         onComplete: (res: string) => {
             setIsAiLoading(false);
             setAiResult(res);
@@ -115,7 +172,9 @@ export default function AnalyzePage() {
         { id: 'statistics', label: 'Statistics' },
         { id: 'profiler', label: 'Column Profiler' },
         { id: 'correlation', label: 'Correlation' },
-        { id: 'anomalies', label: 'Anomalies' }
+        { id: 'anomalies', label: 'Anomalies' },
+        { id: 'clustering', label: 'Clustering' },
+        { id: 'regression', label: 'Regression' },
     ];
 
     const sidebarW = isMobile ? 0 : sidebarCollapsed ? 48 : 240;
@@ -176,6 +235,149 @@ export default function AnalyzePage() {
                                                     <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}/>
                                                 </div>
                                                 <span className="text-sm">Analyzing numerical distributions and detecting patterns...</span>
+                                            </div>
+                                        ) : parsedAnalysis ? (
+                                            <div className="space-y-6 mt-4">
+                                                {/* Top Row: Score & Summary */}
+                                                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                                    <div className="md:col-span-1 flex flex-col items-center justify-center p-6 rounded-2xl bg-white/[0.03] border border-white/5 text-center shadow-inner">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Quality Score</span>
+                                                        <div className={`text-4xl md:text-5xl font-display font-extrabold tracking-tight drop-shadow-lg ${
+                                                            parsedAnalysis.overallQualityScore >= 80 
+                                                                ? 'text-emerald-400' 
+                                                                : parsedAnalysis.overallQualityScore >= 50 
+                                                                    ? 'text-amber-400' 
+                                                                    : 'text-rose-400'
+                                                        }`}>
+                                                            {parsedAnalysis.overallQualityScore}/100
+                                                        </div>
+                                                    </div>
+                                                    <div className="md:col-span-3 space-y-2 flex flex-col justify-center text-left">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Executive Summary</span>
+                                                        <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                                                            {parsedAnalysis.summary}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="divider" />
+
+                                                {/* Key Insights & Next Steps */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    <div className="space-y-3 text-left">
+                                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                                            <Sparkles className="w-3.5 h-3.5 text-[var(--accent-violet)]" /> Key Insights
+                                                        </h4>
+                                                        <ul className="space-y-2.5">
+                                                            {parsedAnalysis.keyInsights?.map((insight, idx) => (
+                                                                <li key={idx} className="flex gap-2.5 items-start text-sm text-slate-300">
+                                                                    <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                                                                    <span className="leading-relaxed">{insight}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                    <div className="space-y-3 text-left">
+                                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                                            <Wand2 className="w-3.5 h-3.5 text-[var(--accent-cyan)]" /> Suggested Next Steps
+                                                        </h4>
+                                                        <ul className="space-y-2.5">
+                                                            {parsedAnalysis.suggestedNextSteps?.map((step, idx) => (
+                                                                <li key={idx} className="flex gap-2.5 items-start text-sm text-slate-300">
+                                                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[var(--accent-cyan)]/15 border border-[var(--accent-cyan)]/25 text-[var(--accent-cyan)] flex items-center justify-center text-[10px] font-mono font-bold mt-0.5">
+                                                                        {idx + 1}
+                                                                    </span>
+                                                                    <span className="leading-relaxed">{step}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                </div>
+
+                                                <div className="divider" />
+
+                                                {/* Data Quality Issues */}
+                                                <div className="space-y-3 text-left">
+                                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Data Quality Assessment
+                                                    </h4>
+                                                    {!parsedAnalysis.dataQualityIssues || parsedAnalysis.dataQualityIssues.length === 0 ? (
+                                                        <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-emerald-400 text-xs flex items-center gap-2">
+                                                            <CheckCircle2 className="w-4 h-4" /> All columns processed successfully! No critical data quality issues found.
+                                                        </div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                            {parsedAnalysis.dataQualityIssues.map((issue, idx) => {
+                                                                const isHigh = issue.severity === 'high';
+                                                                const isMedium = issue.severity === 'medium';
+                                                                return (
+                                                                    <div key={idx} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-2">
+                                                                        <div className="flex items-center justify-between">
+                                                                            <span className="text-xs font-mono font-bold bg-white/5 border border-white/10 px-2 py-0.5 rounded text-white truncate max-w-[150px]">
+                                                                                {issue.column}
+                                                                            </span>
+                                                                            <span className={`badge text-[9px] px-2 py-0.5 ${
+                                                                                isHigh 
+                                                                                    ? 'badge-red' 
+                                                                                    : isMedium 
+                                                                                        ? 'badge-amber' 
+                                                                                        : 'badge-gray'
+                                                                            }`}>
+                                                                                {issue.severity}
+                                                                            </span>
+                                                                        </div>
+                                                                        <p className="text-xs text-slate-300 leading-normal">{issue.issue}</p>
+                                                                        <div className="text-[11px] text-slate-400 leading-normal border-t border-white/5 pt-2 flex items-start gap-1">
+                                                                            <span className="font-semibold text-[var(--accent-cyan)] flex-shrink-0">Recommendation:</span>
+                                                                            <span>{issue.suggestion}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="divider" />
+
+                                                {/* Suggested Charts */}
+                                                <div className="space-y-4 text-left">
+                                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                                        <BarChart2 className="w-3.5 h-3.5 text-[var(--accent-cyan)]" /> Recommended Visualizations
+                                                    </h4>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                        {parsedAnalysis.suggestedCharts?.map((chart, idx) => {
+                                                            const icon = CHART_ICON_MAP[chart.type] ?? <BarChart2 size={16} />;
+                                                            return (
+                                                                <div key={idx} className="p-4 rounded-2xl bg-white/[0.015] border border-white/5 hover:border-white/10 hover:bg-white/[0.03] transition-all flex flex-col justify-between gap-4">
+                                                                    <div className="space-y-2">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-8 h-8 rounded-lg bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] flex items-center justify-center flex-shrink-0 border border-[var(--accent-cyan)]/20">
+                                                                                {icon}
+                                                                            </div>
+                                                                            <span className="text-sm font-semibold text-white truncate">{chart.title}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1 text-[10px] font-mono text-slate-500">
+                                                                            <span>{chart.xColumn}</span>
+                                                                            <span>→</span>
+                                                                            <span>{chart.yColumn}</span>
+                                                                        </div>
+                                                                        <p className="text-xs text-slate-400 leading-normal">{chart.reason}</p>
+                                                                    </div>
+                                                                    <GlassButton 
+                                                                        size="sm" 
+                                                                        variant="ghost" 
+                                                                        className="w-full text-xs font-medium py-2 hover:bg-[var(--accent-cyan)]/10 hover:text-[var(--accent-cyan)] hover:border-[var(--accent-cyan)]/25"
+                                                                        onClick={() => router.push(`/visualize?type=${chart.type}&x=${chart.xColumn}&y=${chart.yColumn}&title=${encodeURIComponent(chart.title)}`)}
+                                                                    >
+                                                                        Open in Studio <ArrowUpRight className="w-3.5 h-3.5 ml-1 inline" />
+                                                                    </GlassButton>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
                                             </div>
                                         ) : (
                                             <div className="prose prose-invert prose-sm max-w-none text-slate-300 mt-2">
@@ -248,6 +450,28 @@ export default function AnalyzePage() {
                                 <p className="text-slate-400 text-sm mb-6">Identify data points that deviate significantly from standard distributions using statistical methods.</p>
                             </div>
                             <AnomalyDetector />
+                        </section>
+
+                        {/* Section 5: K-Means Clustering */}
+                        <section id="clustering" className="scroll-mt-32 space-y-6 pt-12 border-t border-white/10">
+                            <div>
+                                <h2 className="text-2xl font-display font-bold text-white mb-2">K-Means Clustering</h2>
+                                <p className="text-slate-400 text-sm mb-6">
+                                    Group similar data points into clusters. Use the elbow chart to pick an optimal k, then explore cluster assignments on a scatter plot.
+                                </p>
+                            </div>
+                            <ClusteringView />
+                        </section>
+
+                        {/* Section 6: Regression Analysis */}
+                        <section id="regression" className="scroll-mt-32 space-y-6 pt-12 border-t border-white/10">
+                            <div>
+                                <h2 className="text-2xl font-display font-bold text-white mb-2">Regression Analysis</h2>
+                                <p className="text-slate-400 text-sm mb-6">
+                                    Fit linear or polynomial models to uncover relationships between variables, inspect residuals, and forecast future values.
+                                </p>
+                            </div>
+                            <RegressionView />
                         </section>
                         
                     </div>

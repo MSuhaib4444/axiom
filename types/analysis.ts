@@ -57,4 +57,10 @@ export interface RegressionResult {
   predictions: number[];
   residuals: number[];
   equation: string;
+  /** Polynomial degree (1 = linear). Omitted for legacy linear-only callers. */
+  degree?: number;
+  /** Polynomial coefficients [a0, a1, a2, …] where y = Σ ai·x^i */
+  coefficients?: number[];
+  /** Original x values aligned with predictions/residuals */
+  xValues?: number[];
 }

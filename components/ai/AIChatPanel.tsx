@@ -169,7 +169,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ compact = false }) => 
         content: m.content
       }));
 
-      const res = await fetch('/api/gemini/query', {
+      const res = await fetch('/api/openrouter/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -190,29 +190,74 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ compact = false }) => 
         } catch (e) {
           // not JSON
         }
-        
         handleQueryError(errorMsg, errorCode);
         return;
       }
 
-      const data = await res.json();
-      
-      let parsedData = data;
-      if (typeof data === 'string') {
-          // Attempt to extract JSON if markdown wrapped
-          const jsonMatch = data.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-             parsedData = JSON.parse(jsonMatch[0]);
-          } else {
-             parsedData = { answer: data };
-          }
+      // Read the streaming response
+      const reader = res.body?.getReader();
+      if (!reader) {
+        handleQueryError('Response body is not readable', 'unknown');
+        return;
       }
+
+      const decoder = new TextDecoder();
+      let accumulated = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+      }
+
+      // Parse the accumulated JSON response
+      let parsedData: { answer?: string; chartConfig?: unknown } = { answer: accumulated };
+      const jsonMatch = accumulated.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          parsedData = JSON.parse(jsonMatch[0]);
+        } catch (e) {
+          // If JSON parse fails, use raw text as answer
+          parsedData = { answer: accumulated };
+        }
+      }
+
+      // Check if the response is an error payload from the stream
+      if ((parsedData as { error?: string }).error) {
+        const errPayload = parsedData as { error: string; code?: string };
+        handleQueryError(errPayload.error, errPayload.code ?? 'unknown');
+        return;
+      }
+
+      // Validate chartConfig — only store if it has the required fields
+      const rawChart = parsedData.chartConfig as Record<string, unknown> | null | undefined;
+      const validChart =
+        rawChart &&
+        typeof rawChart.type === 'string' &&
+        rawChart.type.length > 0 &&
+        typeof rawChart.xKey === 'string' &&
+        rawChart.xKey.length > 0 &&
+        typeof rawChart.yKey === 'string' &&
+        rawChart.yKey.length > 0
+          ? {
+              id: `ai-chart-${Date.now()}`,
+              type: rawChart.type as any,
+              title: (rawChart.title as string) || 'AI Chart',
+              xColumn: rawChart.xKey as string,
+              yColumn: rawChart.yKey as string,
+              groupBy: null,
+              colorBy: null,
+              aggregation: 'mean' as const,
+              filters: {},
+              options: {}
+            }
+          : undefined;
 
       // Add assistant message
       addMessage({
         role: 'assistant',
         content: parsedData.answer || 'I processed your data.',
-        chartConfig: parsedData.chartConfig || undefined
+        ...(validChart ? { chartConfig: validChart } : {})
       });
 
     } catch (error: any) {
@@ -253,7 +298,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ compact = false }) => 
               Analyze with Axiom AI
             </h3>
             <p className={cn("text-[var(--text-secondary)] text-center max-w-md mx-auto mb-10 leading-relaxed", compact ? "text-xs mb-6 px-4" : "text-base px-6")}>
-              Ask questions, generate charts, or find hidden patterns in your data. I'm powered by Gemini and trained for data science.
+              Ask questions, generate charts, or find hidden patterns in your data. I'm powered by OpenRouter and trained for data science.
             </p>
             <div className={cn("w-full max-w-lg transition-all", compact && "max-w-xs")}>
                <SuggestedPrompts onSelect={(p) => handleSubmit(p)} />
@@ -327,16 +372,21 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ compact = false }) => 
                         )}
                       </GlassCard>
 
-                      {/* Associated Chart if any */}
-                      {m.chartConfig && !m.error && (
-                        <motion.div 
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          className="mt-2 text-left w-full overflow-hidden rounded-2xl border border-white/10 shadow-2xl bg-black/20"
-                        >
-                          <ChartCanvas config={m.chartConfig} height={compact ? 220 : 280} />
-                        </motion.div>
-                      )}
+                      {/* Associated Chart — only render when config has valid columns */}
+                      {m.chartConfig &&
+                        !m.error &&
+                        m.chartConfig.xColumn &&
+                        m.chartConfig.xColumn.length > 0 &&
+                        m.chartConfig.yColumn &&
+                        m.chartConfig.yColumn.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="mt-2 text-left w-full overflow-hidden rounded-2xl border border-white/10 shadow-2xl bg-black/20"
+                          >
+                            <ChartCanvas config={m.chartConfig} height={compact ? 220 : 280} />
+                          </motion.div>
+                        )}
                     </div>
                   </div>
                 </motion.div>
@@ -418,7 +468,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ compact = false }) => 
         <div className="flex items-center justify-center gap-4 mt-4 opacity-50">
           {!compact && (
              <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-[0.2em] font-medium">
-               Axiom AI • Gemini 2.0 Flash • Experimental
+               Axiom AI • OpenRouter Free • Experimental
              </span>
           )}
         </div>

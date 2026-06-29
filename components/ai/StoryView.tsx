@@ -12,247 +12,259 @@ export interface StoryViewProps {
   isStreaming: boolean;
 }
 
+type BlockType = 'h1' | 'h2' | 'h3' | 'hr' | 'ul' | 'ol' | 'p' | 'codeblock' | 'blockquote' | 'table';
+
 interface MarkdownBlock {
-  type: 'h1' | 'h2' | 'h3' | 'hr' | 'ul' | 'ol' | 'p' | 'codeblock';
+  type: BlockType;
   items?: string[];
   content?: string;
   lang?: string;
+  headers?: string[];
+  rows?: string[][];
 }
 
+// ─── Inline Renderer ─────────────────────────────────────────────────────────
+// Correctly handles **bold** before *italic* to avoid collision.
+function parseInline(text: string, keyPrefix = ''): React.ReactNode[] {
+  const result: React.ReactNode[] = [];
+  // Tokenize using a regex that captures bold, italic, inline code in order
+  const INLINE_RE = /(\*\*(.+?)\*\*)|(\*(.+?)\*)|(`(.+?)`)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = INLINE_RE.exec(text)) !== null) {
+    const [full, , boldContent, , italicContent, , codeContent] = match;
+
+    // Text before match
+    if (match.index > lastIndex) {
+      result.push(
+        <span key={`${keyPrefix}t${lastIndex}`}>{text.slice(lastIndex, match.index)}</span>
+      );
+    }
+
+    if (boldContent !== undefined) {
+      result.push(
+        <strong key={`${keyPrefix}b${match.index}`} className="font-bold text-white">
+          {parseInline(boldContent, `${keyPrefix}b${match.index}-`)}
+        </strong>
+      );
+    } else if (italicContent !== undefined) {
+      result.push(
+        <em key={`${keyPrefix}i${match.index}`} className="italic text-[var(--text-primary)]">
+          {parseInline(italicContent, `${keyPrefix}i${match.index}-`)}
+        </em>
+      );
+    } else if (codeContent !== undefined) {
+      result.push(
+        <code
+          key={`${keyPrefix}c${match.index}`}
+          className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-cyan-300 align-middle"
+        >
+          {codeContent}
+        </code>
+      );
+    }
+
+    lastIndex = match.index + full.length;
+  }
+
+  // Remaining text
+  if (lastIndex < text.length) {
+    result.push(<span key={`${keyPrefix}t${lastIndex}`}>{text.slice(lastIndex)}</span>);
+  }
+
+  return result;
+}
+
+// ─── Block Parser ─────────────────────────────────────────────────────────────
+function parseBlocks(markdown: string): MarkdownBlock[] {
+  const lines = markdown.split('\n');
+  const result: MarkdownBlock[] = [];
+  let currentListType: 'ul' | 'ol' | null = null;
+  let currentListItems: string[] = [];
+  let currentParaLines: string[] = [];
+  let inCodeBlock = false;
+  let codeLines: string[] = [];
+  let codeLang = '';
+  let inBlockquote = false;
+  let bqLines: string[] = [];
+  let inTable = false;
+  let tableHeaders: string[] = [];
+  let tableRows: string[][] = [];
+
+  const flushPara = () => {
+    if (currentParaLines.length > 0) {
+      result.push({ type: 'p', content: currentParaLines.join(' ') });
+      currentParaLines = [];
+    }
+  };
+  const flushList = () => {
+    if (currentListType && currentListItems.length > 0) {
+      result.push({ type: currentListType, items: [...currentListItems] });
+      currentListItems = [];
+      currentListType = null;
+    }
+  };
+  const flushBQ = () => {
+    if (inBlockquote && bqLines.length > 0) {
+      result.push({ type: 'blockquote', content: bqLines.join(' ') });
+      bqLines = [];
+      inBlockquote = false;
+    }
+  };
+  const flushTable = () => {
+    if (inTable) {
+      result.push({ type: 'table', headers: [...tableHeaders], rows: [...tableRows] });
+      tableHeaders = [];
+      tableRows = [];
+      inTable = false;
+    }
+  };
+  const flushAll = () => { flushPara(); flushList(); flushBQ(); flushTable(); };
+
+  for (const rawLine of lines) {
+    // Code block mode
+    if (inCodeBlock) {
+      if (rawLine.trim().startsWith('```')) {
+        result.push({ type: 'codeblock', content: codeLines.join('\n'), lang: codeLang });
+        codeLines = [];
+        codeLang = '';
+        inCodeBlock = false;
+      } else {
+        codeLines.push(rawLine);
+      }
+      continue;
+    }
+
+    const line = rawLine.trim();
+
+    // Empty line → flush everything
+    if (line === '') {
+      flushAll();
+      continue;
+    }
+
+    // Code fence start
+    if (line.startsWith('```')) {
+      flushAll();
+      inCodeBlock = true;
+      codeLang = line.slice(3).trim();
+      continue;
+    }
+
+    // Horizontal rule
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
+      flushAll();
+      result.push({ type: 'hr' });
+      continue;
+    }
+
+    // Headings
+    if (line.startsWith('# ')) { flushAll(); result.push({ type: 'h1', content: line.slice(2).trim() }); continue; }
+    if (line.startsWith('## ')) { flushAll(); result.push({ type: 'h2', content: line.slice(3).trim() }); continue; }
+    if (line.startsWith('### ')) { flushAll(); result.push({ type: 'h3', content: line.slice(4).trim() }); continue; }
+
+    // Blockquote
+    if (line.startsWith('> ')) {
+      flushPara();
+      flushList();
+      inBlockquote = true;
+      bqLines.push(line.slice(2));
+      continue;
+    } else if (inBlockquote) {
+      flushBQ();
+    }
+
+    // Unordered list
+    const bulletMatch = rawLine.match(/^(\s*)([-*+])\s+(.*)$/);
+    if (bulletMatch) {
+      flushPara();
+      if (currentListType !== 'ul') { flushList(); currentListType = 'ul'; }
+      currentListItems.push(bulletMatch[3]?.trim() ?? '');
+      continue;
+    }
+
+    // Ordered list
+    const numberedMatch = rawLine.match(/^(\s*)\d+\.\s+(.*)$/);
+    if (numberedMatch) {
+      flushPara();
+      if (currentListType !== 'ol') { flushList(); currentListType = 'ol'; }
+      currentListItems.push(numberedMatch[2]?.trim() ?? '');
+      continue;
+    }
+
+    // Table detection
+    if (line.startsWith('|')) {
+      flushPara();
+      flushList();
+      flushBQ();
+      
+      if (!inTable) {
+        inTable = true;
+      }
+      
+      const isSeparator = /^\|?[\s-:]+\|.*$/.test(line) && !/[a-zA-Z0-9]/.test(line);
+      if (isSeparator) {
+        continue;
+      }
+      
+      let rowLine = line;
+      if (rowLine.startsWith('|')) rowLine = rowLine.slice(1);
+      if (rowLine.endsWith('|')) rowLine = rowLine.slice(0, -1);
+      
+      const cells = rowLine.split('|').map(cell => cell.trim());
+      
+      if (tableHeaders.length === 0) {
+        tableHeaders = cells;
+      } else {
+        tableRows.push(cells);
+      }
+      continue;
+    } else if (inTable) {
+      flushTable();
+    }
+
+    // Normal paragraph line
+    flushList();
+    currentParaLines.push(line);
+  }
+
+  flushAll();
+
+  // Unclosed code block
+  if (inCodeBlock && codeLines.length > 0) {
+    result.push({ type: 'codeblock', content: codeLines.join('\n'), lang: codeLang });
+  }
+
+  return result;
+}
+
+// ─── Section color scheme (cycles per h2) ────────────────────────────────────
+const SECTION_ACCENTS = [
+  { border: 'border-[var(--accent-violet)]', text: 'text-[var(--accent-violet)]', bg: 'bg-[var(--accent-violet)]/10' },
+  { border: 'border-[var(--accent-cyan)]',   text: 'text-[var(--accent-cyan)]',   bg: 'bg-[var(--accent-cyan)]/10' },
+  { border: 'border-amber-400',              text: 'text-amber-400',              bg: 'bg-amber-400/10' },
+  { border: 'border-emerald-400',            text: 'text-emerald-400',            bg: 'bg-emerald-400/10' },
+  { border: 'border-pink-400',               text: 'text-pink-400',               bg: 'bg-pink-400/10' },
+];
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export const StoryView: React.FC<StoryViewProps> = ({ markdown, isStreaming }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const { exportPDF } = useExport();
 
-  // Custom inline renderer for bold, italic, and inline code
-  const parseInline = (text: string): React.ReactNode[] => {
-    const tokens: React.ReactNode[] = [];
-    let remaining = text;
-    let key = 0;
-
-    while (remaining) {
-      const boldIndex = remaining.indexOf('**');
-      const italicIndex = remaining.indexOf('*');
-      const codeIndex = remaining.indexOf('`');
-
-      const indices = [
-        { type: 'bold', index: boldIndex, length: 2 },
-        { type: 'italic', index: italicIndex, length: 1 },
-        { type: 'code', index: codeIndex, length: 1 },
-      ].filter((x) => x.index !== -1);
-
-      if (indices.length === 0) {
-        tokens.push(<span key={key++}>{remaining}</span>);
-        break;
-      }
-
-      indices.sort((a, b) => a.index - b.index);
-      const first = indices[0]!;
-
-      if (first.index > 0) {
-        tokens.push(<span key={key++}>{remaining.slice(0, first.index)}</span>);
-      }
-
-      remaining = remaining.slice(first.index + first.length);
-
-      if (first.type === 'bold') {
-        const endBoldIndex = remaining.indexOf('**');
-        if (endBoldIndex === -1) {
-          tokens.push(<span key={key++}>**</span>);
-        } else {
-          const boldText = remaining.slice(0, endBoldIndex);
-          tokens.push(
-            <strong key={key++} className="font-bold text-white">
-              {parseInline(boldText)}
-            </strong>
-          );
-          remaining = remaining.slice(endBoldIndex + 2);
-        }
-      } else if (first.type === 'italic') {
-        const endItalicIndex = remaining.indexOf('*');
-        if (endItalicIndex === -1) {
-          tokens.push(<span key={key++}>*</span>);
-        } else {
-          const italicText = remaining.slice(0, endItalicIndex);
-          tokens.push(
-            <em key={key++} className="italic text-[var(--text-primary)]">
-              {parseInline(italicText)}
-            </em>
-          );
-          remaining = remaining.slice(endItalicIndex + 1);
-        }
-      } else if (first.type === 'code') {
-        const endCodeIndex = remaining.indexOf('`');
-        if (endCodeIndex === -1) {
-          tokens.push(<span key={key++}>`</span>);
-        } else {
-          const codeText = remaining.slice(0, endCodeIndex);
-          tokens.push(
-            <code
-              key={key++}
-              className="font-mono text-xs px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-cyan-300"
-            >
-              {codeText}
-            </code>
-          );
-          remaining = remaining.slice(endCodeIndex + 1);
-        }
-      }
-    }
-
-    return tokens;
-  };
-
-  // Block-level markdown parser
   const blocks = useMemo<MarkdownBlock[]>(() => {
     if (!markdown) return [];
-
-    const lines = markdown.split('\n');
-    const result: MarkdownBlock[] = [];
-
-    let currentListType: 'ul' | 'ol' | null = null;
-    let currentListItems: string[] = [];
-    let currentParagraphLines: string[] = [];
-    let inCodeBlock = false;
-    let codeBlockContent: string[] = [];
-    let codeBlockLang = '';
-
-    const flushParagraph = () => {
-      if (currentParagraphLines.length > 0) {
-        result.push({
-          type: 'p',
-          content: currentParagraphLines.join(' '),
-        });
-        currentParagraphLines = [];
-      }
-    };
-
-    const flushList = () => {
-      if (currentListType && currentListItems.length > 0) {
-        result.push({
-          type: currentListType,
-          items: currentListItems,
-        });
-        currentListItems = [];
-        currentListType = null;
-      }
-    };
-
-    const flushAll = () => {
-      flushParagraph();
-      flushList();
-    };
-
-    for (let i = 0; i < lines.length; i++) {
-      const rawLine = lines[i];
-      if (rawLine === undefined) continue;
-
-      if (inCodeBlock) {
-        if (rawLine.trim().startsWith('```')) {
-          inCodeBlock = false;
-          result.push({
-            type: 'codeblock',
-            content: codeBlockContent.join('\n'),
-            lang: codeBlockLang,
-          });
-          codeBlockContent = [];
-          codeBlockLang = '';
-        } else {
-          codeBlockContent.push(rawLine);
-        }
-        continue;
-      }
-
-      const line = rawLine.trim();
-
-      if (line === '') {
-        flushAll();
-        continue;
-      }
-
-      if (line.startsWith('```')) {
-        flushAll();
-        inCodeBlock = true;
-        codeBlockLang = line.slice(3).trim();
-        continue;
-      }
-
-      if (line === '---' || line === '***' || line === '___') {
-        flushAll();
-        result.push({ type: 'hr' });
-        continue;
-      }
-
-      if (line.startsWith('# ')) {
-        flushAll();
-        result.push({ type: 'h1', content: line.slice(2).trim() });
-        continue;
-      }
-      if (line.startsWith('## ')) {
-        flushAll();
-        result.push({ type: 'h2', content: line.slice(3).trim() });
-        continue;
-      }
-      if (line.startsWith('### ')) {
-        flushAll();
-        result.push({ type: 'h3', content: line.slice(4).trim() });
-        continue;
-      }
-
-      const bulletMatch = rawLine.match(/^(\s*)([-*+])\s+(.*)$/);
-      if (bulletMatch) {
-        flushParagraph();
-        if (currentListType !== 'ul') {
-          flushList();
-          currentListType = 'ul';
-        }
-        currentListItems.push(bulletMatch[3]?.trim() ?? '');
-        continue;
-      }
-
-      const numberedMatch = rawLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
-      if (numberedMatch) {
-        flushParagraph();
-        if (currentListType !== 'ol') {
-          flushList();
-          currentListType = 'ol';
-        }
-        currentListItems.push(numberedMatch[3]?.trim() ?? '');
-        continue;
-      }
-
-      flushList();
-      currentParagraphLines.push(line);
-    }
-
-    flushAll();
-
-    if (inCodeBlock && codeBlockContent.length > 0) {
-      result.push({
-        type: 'codeblock',
-        content: codeBlockContent.join('\n'),
-        lang: codeBlockLang,
-      });
-    }
-
-    return result;
+    return parseBlocks(markdown);
   }, [markdown]);
 
-  const handleExportPDF = () => {
-    exportPDF(contentRef, 'axiom_data_story.pdf');
-  };
+  const handleExportPDF = () => exportPDF(contentRef, 'axiom_data_story.pdf');
 
-  const handleCopyHTML = () => {
-    if (!contentRef.current) {
-      toast.error('Report content not found');
-      return;
-    }
-    const htmlContent = contentRef.current.innerHTML;
-    navigator.clipboard.writeText(htmlContent)
-      .then(() => toast.success('HTML copied to clipboard'))
-      .catch((err) => {
-        console.error(err);
-        toast.error('Failed to copy HTML');
-      });
+  const handleCopyMarkdown = () => {
+    if (!markdown) return;
+    navigator.clipboard.writeText(markdown)
+      .then(() => toast.success('Markdown copied to clipboard'))
+      .catch(() => toast.error('Failed to copy'));
   };
 
   if (!markdown && !isStreaming) {
@@ -265,103 +277,158 @@ export const StoryView: React.FC<StoryViewProps> = ({ markdown, isStreaming }) =
   }
 
   const cursor = isStreaming ? (
-    <span className="inline-block w-1.5 h-4 ml-1 bg-[#00D4FF] animate-pulse rounded-sm" style={{ verticalAlign: 'middle' }} />
+    <span
+      className="inline-block w-[2px] h-4 ml-0.5 bg-[var(--accent-cyan)] animate-pulse rounded-sm"
+      style={{ verticalAlign: 'middle' }}
+    />
   ) : null;
 
+  // Track h2 count to cycle accent colors
+  let h2Count = 0;
+
   return (
-    <GlassCard padding="lg" className="w-full flex flex-col relative overflow-hidden transition-all duration-300">
-      {/* Header bar with controls */}
-      <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-cyan-400 animate-pulse" />
-          <h3 className="font-display font-semibold text-lg text-white">AI Data Story</h3>
+    <GlassCard padding="lg" className="w-full flex flex-col relative overflow-hidden">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-8">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-[var(--accent-cyan)]/10 border border-[var(--accent-cyan)]/20 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-[var(--accent-cyan)]" />
+          </div>
+          <div>
+            <h3 className="font-display font-semibold text-base text-white leading-tight">AI Data Story</h3>
+            <p className="text-[10px] text-[var(--text-tertiary)] font-mono uppercase tracking-widest">
+              {isStreaming ? 'Generating…' : `${blocks.length} sections rendered`}
+            </p>
+          </div>
         </div>
-        
-        {blocks.length > 0 && (
+
+        {blocks.length > 0 && !isStreaming && (
           <div className="flex items-center gap-2">
-            <GlassButton
-              variant="ghost"
-              size="sm"
-              onClick={handleCopyHTML}
-              disabled={isStreaming}
-              leftIcon={<Copy className="w-3.5 h-3.5" />}
-            >
-              Copy as HTML
+            <GlassButton variant="ghost" size="sm" onClick={handleCopyMarkdown} leftIcon={<Copy className="w-3.5 h-3.5" />}>
+              Copy Markdown
             </GlassButton>
-            <GlassButton
-              variant="primary"
-              size="sm"
-              onClick={handleExportPDF}
-              disabled={isStreaming}
-              leftIcon={<Download className="w-3.5 h-3.5" />}
-            >
+            <GlassButton variant="primary" size="sm" onClick={handleExportPDF} leftIcon={<Download className="w-3.5 h-3.5" />}>
               Export PDF
             </GlassButton>
           </div>
         )}
       </div>
 
-      {/* Rendered content area */}
-      <div ref={contentRef} className="text-left w-full select-text max-w-none pr-2">
+      {/* Content */}
+      <div ref={contentRef} className="text-left w-full select-text">
+        {blocks.length === 0 && isStreaming && (
+          <p className="text-sm text-[var(--text-secondary)] flex items-center gap-2 animate-pulse">
+            <Sparkles className="w-4 h-4 text-[var(--accent-cyan)]" />
+            Thinking{cursor}
+          </p>
+        )}
+
         {blocks.map((block, idx) => {
-          const isLastBlock = idx === blocks.length - 1;
+          const isLast = idx === blocks.length - 1;
 
           switch (block.type) {
+
+            // ── H1 ──────────────────────────────────────────────────────────
             case 'h1':
               return (
-                <h1 key={idx} className="font-display text-3xl font-extrabold bg-gradient-to-r from-[#6C63FF] to-[#00D4FF] bg-clip-text text-transparent mt-8 mb-4 leading-tight">
-                  {parseInline(block.content || '')}
-                  {isLastBlock && cursor}
-                </h1>
-              );
-
-            case 'h2':
-              return (
-                <h2 key={idx} className="font-display text-xl font-bold mt-6 mb-3 pb-2 border-b border-white/10 text-white">
-                  {parseInline(block.content || '')}
-                  {isLastBlock && cursor}
-                </h2>
-              );
-
-            case 'h3':
-              return (
-                <h3 key={idx} className="font-display text-lg font-semibold mt-4 mb-2 text-white">
-                  {parseInline(block.content || '')}
-                  {isLastBlock && cursor}
-                </h3>
-              );
-
-            case 'p':
-              return (
-                <p key={idx} className="text-[var(--text-secondary)] mb-4 text-sm leading-relaxed whitespace-pre-line">
-                  {parseInline(block.content || '')}
-                  {isLastBlock && cursor}
-                </p>
-              );
-
-            case 'hr':
-              return <hr key={idx} className="my-6 border-t border-white/10" />;
-
-            case 'codeblock':
-              return (
-                <div key={idx} className="relative">
-                  <pre className="glass-card font-mono text-xs p-4 mb-4 overflow-x-auto text-[var(--text-secondary)] border border-white/10 bg-black/40">
-                    <code>{block.content}</code>
-                  </pre>
-                  {isLastBlock && cursor}
+                <div key={idx} className="mb-8 mt-2">
+                  <h1 className="font-display text-3xl font-extrabold bg-gradient-to-r from-[var(--accent-violet)] via-[#a78bfa] to-[var(--accent-cyan)] bg-clip-text text-transparent leading-tight">
+                    {parseInline(block.content ?? '', `h1-${idx}`)}
+                    {isLast && cursor}
+                  </h1>
+                  <div className="h-px mt-3 bg-gradient-to-r from-[var(--accent-violet)]/40 via-[var(--accent-cyan)]/20 to-transparent" />
                 </div>
               );
 
+            // ── H2 ──────────────────────────────────────────────────────────
+            case 'h2': {
+              const accent = SECTION_ACCENTS[h2Count % SECTION_ACCENTS.length]!;
+              h2Count++;
+              return (
+                <div key={idx} className="mt-8 mb-4">
+                  <div className={`flex items-center gap-3 p-3 rounded-xl ${accent.bg} border ${accent.border} border-opacity-30`}>
+                    <span className={`w-1 h-5 rounded-full flex-shrink-0 ${accent.border.replace('border-', 'bg-')}`} />
+                    <h2 className={`font-display text-lg font-bold ${accent.text} leading-tight`}>
+                      {parseInline(block.content ?? '', `h2-${idx}`)}
+                      {isLast && cursor}
+                    </h2>
+                  </div>
+                </div>
+              );
+            }
+
+            // ── H3 ──────────────────────────────────────────────────────────
+            case 'h3':
+              return (
+                <h3 key={idx} className="font-display text-base font-semibold text-white mt-5 mb-2.5 flex items-center gap-2">
+                  <span className="w-1 h-3.5 bg-[var(--accent-cyan)]/50 rounded-full flex-shrink-0" />
+                  {parseInline(block.content ?? '', `h3-${idx}`)}
+                  {isLast && cursor}
+                </h3>
+              );
+
+            // ── Paragraph ────────────────────────────────────────────────────
+            case 'p':
+              return (
+                <p key={idx} className="text-[var(--text-secondary)] text-sm leading-[1.85] mb-4">
+                  {parseInline(block.content ?? '', `p-${idx}`)}
+                  {isLast && cursor}
+                </p>
+              );
+
+            // ── Horizontal rule ──────────────────────────────────────────────
+            case 'hr':
+              return (
+                <div key={idx} className="my-7 flex items-center gap-3">
+                  <div className="flex-1 h-px bg-white/8" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+                  <div className="flex-1 h-px bg-white/8" />
+                </div>
+              );
+
+            // ── Blockquote ───────────────────────────────────────────────────
+            case 'blockquote':
+              return (
+                <blockquote key={idx} className="my-4 pl-4 border-l-2 border-[var(--accent-violet)] bg-[var(--accent-violet)]/5 rounded-r-xl py-3 pr-4">
+                  <p className="text-sm text-[var(--text-secondary)] italic leading-relaxed">
+                    {parseInline(block.content ?? '', `bq-${idx}`)}
+                    {isLast && cursor}
+                  </p>
+                </blockquote>
+              );
+
+            // ── Code block ───────────────────────────────────────────────────
+            case 'codeblock':
+              return (
+                <div key={idx} className="my-4 rounded-xl overflow-hidden border border-white/10">
+                  {block.lang && (
+                    <div className="px-4 py-1.5 bg-white/5 border-b border-white/10 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-400/70" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-green-400/70" />
+                      <span className="ml-2 text-[10px] font-mono text-[var(--text-tertiary)] uppercase tracking-widest">{block.lang}</span>
+                    </div>
+                  )}
+                  <pre className="p-4 overflow-x-auto bg-black/40">
+                    <code className="font-mono text-xs text-[var(--text-secondary)] leading-relaxed">
+                      {block.content}
+                    </code>
+                  </pre>
+                  {isLast && cursor}
+                </div>
+              );
+
+            // ── Unordered list ───────────────────────────────────────────────
             case 'ul':
               return (
-                <ul key={idx} className="space-y-2 mb-4 list-none pl-1">
+                <ul key={idx} className="space-y-2 mb-5 pl-1">
                   {block.items?.map((item, itemIdx) => {
-                    const isLastItem = isLastBlock && itemIdx === block.items!.length - 1;
+                    const isLastItem = isLast && itemIdx === (block.items?.length ?? 0) - 1;
                     return (
-                      <li key={itemIdx} className="flex items-start text-sm text-[var(--text-secondary)]">
-                        <span className="inline-block text-[#6C63FF] mr-2.5 mt-1.5 flex-shrink-0 text-[10px]">◆</span>
-                        <span className="w-full">
-                          {parseInline(item)}
+                      <li key={itemIdx} className="flex items-start gap-3 text-sm text-[var(--text-secondary)] leading-relaxed">
+                        <span className="mt-[7px] w-1.5 h-1.5 rounded-full bg-[var(--accent-violet)]/70 flex-shrink-0" />
+                        <span>
+                          {parseInline(item, `ul-${idx}-${itemIdx}`)}
                           {isLastItem && cursor}
                         </span>
                       </li>
@@ -370,18 +437,19 @@ export const StoryView: React.FC<StoryViewProps> = ({ markdown, isStreaming }) =
                 </ul>
               );
 
+            // ── Ordered list ─────────────────────────────────────────────────
             case 'ol':
               return (
-                <ol key={idx} className="space-y-2 mb-4 list-none pl-1">
+                <ol key={idx} className="space-y-2 mb-5 pl-1">
                   {block.items?.map((item, itemIdx) => {
-                    const isLastItem = isLastBlock && itemIdx === block.items!.length - 1;
+                    const isLastItem = isLast && itemIdx === (block.items?.length ?? 0) - 1;
                     return (
-                      <li key={itemIdx} className="flex items-start text-sm text-[var(--text-secondary)]">
-                        <span className="inline-block text-[#6C63FF] font-bold font-mono mr-2.5 flex-shrink-0 text-xs">
-                          {itemIdx + 1}.
+                      <li key={itemIdx} className="flex items-start gap-3 text-sm text-[var(--text-secondary)] leading-relaxed">
+                        <span className="flex-shrink-0 mt-[1px] w-5 h-5 rounded-full bg-[var(--accent-cyan)]/10 border border-[var(--accent-cyan)]/25 text-[var(--accent-cyan)] flex items-center justify-center text-[10px] font-mono font-bold">
+                          {itemIdx + 1}
                         </span>
-                        <span className="w-full">
-                          {parseInline(item)}
+                        <span>
+                          {parseInline(item, `ol-${idx}-${itemIdx}`)}
                           {isLastItem && cursor}
                         </span>
                       </li>
@@ -390,16 +458,48 @@ export const StoryView: React.FC<StoryViewProps> = ({ markdown, isStreaming }) =
                 </ol>
               );
 
+            // ── Table ────────────────────────────────────────────────────────
+            case 'table':
+              return (
+                <div key={idx} className="my-6 overflow-x-auto rounded-xl border border-white/10 bg-black/20">
+                  <table className="w-full text-sm text-left border-collapse">
+                    {block.headers && block.headers.length > 0 && (
+                      <thead className="bg-white/5 border-b border-white/10 text-[var(--text-primary)]">
+                        <tr>
+                          {block.headers.map((header, hIdx) => (
+                            <th key={`th-${hIdx}`} className="px-4 py-3 font-semibold">
+                              {parseInline(header, `th-${idx}-${hIdx}`)}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                    )}
+                    <tbody>
+                      {block.rows?.map((row, rIdx) => {
+                        const isLastRow = isLast && rIdx === (block.rows?.length ?? 0) - 1;
+                        return (
+                          <tr key={`tr-${rIdx}`} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
+                            {row.map((cell, cIdx) => {
+                              const isLastCell = isLastRow && cIdx === row.length - 1;
+                              return (
+                                <td key={`td-${cIdx}`} className="px-4 py-3 text-[var(--text-secondary)]">
+                                  {parseInline(cell, `td-${idx}-${rIdx}-${cIdx}`)}
+                                  {isLastCell && cursor}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+
             default:
               return null;
           }
         })}
-        {blocks.length === 0 && isStreaming && (
-          <p className="text-sm text-[var(--text-secondary)] flex items-center">
-            Thinking
-            {cursor}
-          </p>
-        )}
       </div>
     </GlassCard>
   );

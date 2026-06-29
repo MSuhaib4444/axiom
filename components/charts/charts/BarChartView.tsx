@@ -12,6 +12,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { truncate } from '@/lib/utils';
+import { formatChartLabel } from '@/lib/formatters';
 
 interface BarChartViewProps {
   data: Record<string, unknown>[];
@@ -26,7 +27,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="glass-card p-3 border border-white/10 shadow-xl">
-        <p className="text-xs font-bold text-slate-200 mb-1">{label}</p>
+        <p className="text-xs font-bold text-slate-200 mb-1">{formatChartLabel(label)}</p>
         <p className="text-sm font-medium text-[var(--accent-cyan)]">
           {payload[0].value.toLocaleString()}
         </p>

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useDataStore } from '@/store/dataStore';
-import { useGeminiStream } from '@/hooks/useGeminiStream';
+import { useOpenRouterStream } from '@/hooks/useOpenRouterStream';
 import { StoryView } from '@/components/ai/StoryView';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassButton } from '@/components/ui/GlassButton';
@@ -74,8 +74,8 @@ function ReportPageContent() {
     };
   }, []);
 
-  const { stream, content, isStreaming, error } = useGeminiStream({
-    endpoint: '/api/gemini/story',
+  const { stream, content, isStreaming, error } = useOpenRouterStream({
+    endpoint: '/api/openrouter/story',
     onComplete: (result) => {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);

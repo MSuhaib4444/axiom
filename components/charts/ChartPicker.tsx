@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useDataStore } from '@/store/dataStore';
 import { ChartType, ChartConfig } from '@/types/charts';
-import { ChartRecommendation } from '@/lib/gemini';
+import { ChartRecommendation } from '@/types/openrouter';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassSelect } from '@/components/ui/GlassSelect';
 import { GlassButton } from '@/components/ui/GlassButton';
@@ -14,6 +14,12 @@ import {
   AreaChart as AreaChartIcon,
   PieChart as PieChartIcon,
   ScatterChart as ScatterChartIcon,
+  Grid3X3,
+  LayoutGrid,
+  GitMerge,
+  Radar,
+  BoxSelect,
+  Activity,
   Wand2,
   Sparkles,
   ChevronRight,
@@ -27,7 +33,7 @@ interface ChartPickerProps {
   onConfigChange: (config: ChartConfig) => void;
 }
 
-const CHART_TYPES: { type: ChartType; label: string; icon: React.ReactNode }[] = [
+const BASIC_CHART_TYPES: { type: ChartType; label: string; icon: React.ReactNode }[] = [
   { type: 'bar',     label: 'Bar Chart',    icon: <BarChart2 size={20} /> },
   { type: 'line',    label: 'Line Chart',   icon: <LineChart size={20} /> },
   { type: 'area',    label: 'Area Chart',   icon: <AreaChartIcon size={20} /> },
@@ -35,21 +41,49 @@ const CHART_TYPES: { type: ChartType; label: string; icon: React.ReactNode }[] =
   { type: 'scatter', label: 'Scatter Plot', icon: <ScatterChartIcon size={20} /> },
 ];
 
+const ADVANCED_CHART_TYPES: {
+  type: ChartType;
+  label: string;
+  icon: React.ReactNode;
+  d3Powered?: boolean;
+}[] = [
+  { type: 'heatmap',   label: 'Heatmap',    icon: <Grid3X3 size={20} />,    d3Powered: true },
+  { type: 'treemap',   label: 'Treemap',    icon: <LayoutGrid size={20} />, d3Powered: true },
+  { type: 'sankey',    label: 'Sankey',     icon: <GitMerge size={20} />,   d3Powered: true },
+  { type: 'radar',     label: 'Radar',      icon: <Radar size={20} /> },
+  { type: 'boxplot',   label: 'Box Plot',   icon: <BoxSelect size={20} /> },
+  { type: 'waterfall', label: 'Waterfall',  icon: <Activity size={20} /> },
+];
+
 const CHART_TYPE_ICON_MAP: Record<string, React.ReactNode> = {
-  bar:     <BarChart2 size={16} />,
-  line:    <LineChart size={16} />,
-  area:    <AreaChartIcon size={16} />,
-  pie:     <PieChartIcon size={16} />,
-  scatter: <ScatterChartIcon size={16} />,
+  bar:       <BarChart2 size={16} />,
+  line:      <LineChart size={16} />,
+  area:      <AreaChartIcon size={16} />,
+  pie:       <PieChartIcon size={16} />,
+  scatter:   <ScatterChartIcon size={16} />,
+  heatmap:   <Grid3X3 size={16} />,
+  treemap:   <LayoutGrid size={16} />,
+  sankey:    <GitMerge size={16} />,
+  radar:     <Radar size={16} />,
+  boxplot:   <BoxSelect size={16} />,
+  waterfall: <Activity size={16} />,
 };
 
 const CHART_TYPE_COLOR_MAP: Record<string, string> = {
-  bar:     'var(--accent-violet)',
-  line:    'var(--accent-cyan)',
-  area:    'var(--accent-green)',
-  pie:     'var(--accent-amber)',
-  scatter: 'var(--accent-red)',
+  bar:       'var(--accent-violet)',
+  line:      'var(--accent-cyan)',
+  area:      'var(--accent-green)',
+  pie:       'var(--accent-amber)',
+  scatter:   'var(--accent-red)',
+  heatmap:   'var(--accent-violet)',
+  treemap:   'var(--accent-cyan)',
+  sankey:    'var(--accent-green)',
+  radar:     'var(--accent-amber)',
+  boxplot:   'var(--accent-red)',
+  waterfall: 'var(--accent-violet)',
 };
+
+const NEEDS_VALUE_COLUMN: ChartType[] = ['heatmap', 'sankey'];
 
 type AiPanelState = 'idle' | 'loading' | 'success' | 'error';
 
@@ -60,6 +94,8 @@ export const ChartPicker: React.FC<ChartPickerProps> = ({ onConfigChange }) => {
   const [selectedType, setSelectedType] = useState<ChartType>('bar');
   const [xColumn, setXColumn] = useState<string>('');
   const [yColumn, setYColumn] = useState<string>('');
+  const [valueColumn, setValueColumn] = useState<string>('');
+  const [groupColumn, setGroupColumn] = useState<string>('none');
 
   // AI recommendations state
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
@@ -87,21 +123,62 @@ export const ChartPicker: React.FC<ChartPickerProps> = ({ onConfigChange }) => {
     [sheet]
   );
 
+  const canGenerate = useMemo(() => {
+    if (!xColumn) return false;
+    if (selectedType === 'radar') return true;
+    if (!yColumn) return false;
+    if (NEEDS_VALUE_COLUMN.includes(selectedType) && !valueColumn) return false;
+    return true;
+  }, [xColumn, yColumn, valueColumn, selectedType]);
+
+  const axisLabels = useMemo(() => {
+    switch (selectedType) {
+      case 'heatmap':
+        return { x: 'X Dimension', y: 'Y Dimension', value: 'Value (Numeric)' };
+      case 'sankey':
+        return { x: 'Source', y: 'Target', value: 'Flow Value' };
+      case 'treemap':
+        return { x: 'Label', y: 'Value (Numeric)', group: 'Group (Optional)' };
+      case 'boxplot':
+        return { x: 'Category (Groups)', y: 'Values (Numeric)' };
+      case 'radar':
+        return { x: 'Profile Label (Optional)', y: 'Numeric Axes (auto)' };
+      case 'waterfall':
+        return { x: 'Step / Category', y: 'Value (Numeric)' };
+      case 'pie':
+        return { x: 'Category Column', y: 'Value Column' };
+      default:
+        return { x: 'X-Axis (Dimension)', y: 'Y-Axis (Measure)' };
+    }
+  }, [selectedType]);
+
   const handleGenerate = () => {
-    if (!xColumn || !yColumn) return;
+    if (!canGenerate) return;
     const xInfo = sheet?.columns.find(c => c.key === xColumn);
     const yInfo = sheet?.columns.find(c => c.key === yColumn);
+
+    const numericKeys = sheet?.columns
+      .filter(c => ['number', 'currency', 'percentage'].includes(c.type))
+      .map(c => c.key) ?? [];
+
+    let title = 'New Visualization';
+    if (selectedType === 'radar') {
+      title = 'Multi-Variable Radar Profile';
+    } else if (yInfo && xInfo) {
+      title = `${yInfo.name} by ${xInfo.name}`;
+    }
+
     onConfigChange({
       id: Math.random().toString(36).substr(2, 9),
       type: selectedType,
-      title: `${yInfo?.name ?? yColumn} by ${xInfo?.name ?? xColumn}`,
+      title,
       xColumn,
-      yColumn,
-      groupBy: null,
-      colorBy: null,
+      yColumn: selectedType === 'radar' ? (numericKeys[0] ?? null) : yColumn,
+      groupBy: NEEDS_VALUE_COLUMN.includes(selectedType) ? valueColumn : null,
+      colorBy: selectedType === 'treemap' && groupColumn && groupColumn !== 'none' ? groupColumn : null,
       aggregation: 'mean',
       filters: {},
-      options: {},
+      options: selectedType === 'radar' ? { radarKeys: numericKeys } : {},
     });
   };
 
@@ -116,7 +193,7 @@ export const ChartPicker: React.FC<ChartPickerProps> = ({ onConfigChange }) => {
     setAppliedIndex(null);
 
     try {
-      const res = await fetch('/api/gemini/chart-recommend', {
+      const res = await fetch('/api/openrouter/chart-recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sheet }),
@@ -136,7 +213,7 @@ export const ChartPicker: React.FC<ChartPickerProps> = ({ onConfigChange }) => {
 
       const data = await res.json() as { recommendations: ChartRecommendation[] };
       if (!data.recommendations || data.recommendations.length === 0) {
-        setAiError('Gemini could not generate recommendations for this dataset. Try selecting specific columns in the sidebar first.');
+        setAiError('OpenRouter could not generate recommendations for this dataset. Try selecting specific columns in the sidebar first.');
         setAiState('error');
         return;
       }
@@ -182,7 +259,7 @@ export const ChartPicker: React.FC<ChartPickerProps> = ({ onConfigChange }) => {
           1. Select Chart Type
         </h4>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-          {CHART_TYPES.map((item) => (
+          {BASIC_CHART_TYPES.map((item) => (
             <button
               key={item.type}
               onClick={() => setSelectedType(item.type)}
@@ -203,6 +280,37 @@ export const ChartPicker: React.FC<ChartPickerProps> = ({ onConfigChange }) => {
             </button>
           ))}
         </div>
+
+        <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1 pt-2">
+          Advanced Charts
+        </h4>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+          {ADVANCED_CHART_TYPES.map((item) => (
+            <button
+              key={item.type}
+              onClick={() => setSelectedType(item.type)}
+              className={cn(
+                'relative flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-all duration-300',
+                selectedType === item.type
+                  ? 'bg-[var(--accent-cyan)]/10 border-[var(--accent-cyan)] text-[var(--accent-cyan)] shadow-[0_0_20px_rgba(0,212,255,0.15)]'
+                  : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:border-white/10'
+              )}
+            >
+              {item.d3Powered && (
+                <span className="absolute top-1.5 right-1.5 badge badge-violet text-[8px] px-1 py-0">
+                  D3
+                </span>
+              )}
+              <div className={cn(
+                'w-8 h-8 rounded-lg flex items-center justify-center',
+                selectedType === item.type ? 'bg-[var(--accent-cyan)]/20' : 'bg-white/5'
+              )}>
+                {item.icon}
+              </div>
+              <span className="text-[10px] font-medium text-center">{item.label}</span>
+            </button>
+          ))}
+        </div>
       </section>
 
       {/* ── Section 2: Axis Config ── */}
@@ -212,19 +320,55 @@ export const ChartPicker: React.FC<ChartPickerProps> = ({ onConfigChange }) => {
         </h4>
         <GlassCard padding="md" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <GlassSelect
-            label={selectedType === 'pie' ? 'Category Column' : 'X-Axis (Dimension)'}
+            label={axisLabels.x}
             placeholder="Select a column..."
             value={xColumn}
             onValueChange={setXColumn}
             options={columns.map(c => ({ value: c.value, label: c.label }))}
           />
-          <GlassSelect
-            label={selectedType === 'pie' ? 'Value Column' : 'Y-Axis (Measure)'}
-            placeholder="Select a numeric column..."
-            value={yColumn}
-            onValueChange={setYColumn}
-            options={numericColumns.map(c => ({ value: c.value, label: c.label }))}
-          />
+          {selectedType !== 'radar' && (
+            <GlassSelect
+              label={axisLabels.y}
+              placeholder={
+                selectedType === 'boxplot' || selectedType === 'heatmap' || selectedType === 'sankey'
+                  ? 'Select a column...'
+                  : 'Select a numeric column...'
+              }
+              value={yColumn}
+              onValueChange={setYColumn}
+              options={
+                selectedType === 'boxplot' || selectedType === 'heatmap' || selectedType === 'sankey'
+                  ? columns.map(c => ({ value: c.value, label: c.label }))
+                  : numericColumns.map(c => ({ value: c.value, label: c.label }))
+              }
+            />
+          )}
+          {NEEDS_VALUE_COLUMN.includes(selectedType) && (
+            <GlassSelect
+              label={axisLabels.value ?? 'Value Column'}
+              placeholder="Select a numeric column..."
+              value={valueColumn}
+              onValueChange={setValueColumn}
+              options={numericColumns.map(c => ({ value: c.value, label: c.label }))}
+            />
+          )}
+          {selectedType === 'treemap' && (
+            <GlassSelect
+              label={axisLabels.group ?? 'Group Column'}
+              placeholder="Optional grouping..."
+              value={groupColumn}
+              onValueChange={setGroupColumn}
+              options={[
+                { value: 'none', label: 'None' },
+                ...columns.map(c => ({ value: c.value, label: c.label })),
+              ]}
+            />
+          )}
+          {selectedType === 'radar' && (
+            <p className="sm:col-span-2 text-xs text-slate-500 leading-relaxed">
+              Radar chart uses all numeric columns as axes. Up to 5 data rows are plotted as separate series.
+            </p>
+          )}
         </GlassCard>
       </section>
 
@@ -234,7 +378,7 @@ export const ChartPicker: React.FC<ChartPickerProps> = ({ onConfigChange }) => {
           variant="primary"
           className="flex-1 py-6 h-auto text-base font-bold gap-2"
           onClick={handleGenerate}
-          disabled={!xColumn || !yColumn}
+          disabled={!canGenerate}
         >
           <BarChart2 size={20} />
           Visualize Data
@@ -292,7 +436,7 @@ export const ChartPicker: React.FC<ChartPickerProps> = ({ onConfigChange }) => {
                 />
               ))}
               <p className="text-[10px] text-slate-500 text-center pt-1">
-                Gemini is analysing your columns…
+                OpenRouter is analysing your columns…
               </p>
             </div>
           )}
