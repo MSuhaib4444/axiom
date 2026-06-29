@@ -1,7 +1,9 @@
 import { ColumnType, CellValue } from '@/types/data';
 
-export function formatDate(date: Date | string | number | null | undefined, style: 'short' | 'long' | 'iso' = 'short'): string {
+export function formatDate(date: Date | string | number | boolean | null | undefined, style: 'short' | 'long' | 'iso' = 'short'): string {
   if (date === null || date === undefined || date === '') return '—';
+  if (typeof date === 'boolean') return String(date);
+  
   let d: Date;
   
   if (date instanceof Date) {
