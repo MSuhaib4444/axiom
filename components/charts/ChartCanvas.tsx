@@ -106,17 +106,19 @@ export const ChartCanvas: React.FC<ChartCanvasProps> = ({
             : true)
       )
       .map((row) => {
+        const rawX = row[config.xColumn!] ?? null;
+        const rawY = row[config.yColumn!] ?? null;
         const point: Record<string, string | number> = {
           [config.xColumn!]: xUsesNumericScale
-            ? toChartNumericValue(row[config.xColumn!], xCol?.type)
-            : toChartAxisValue(row[config.xColumn!], xCol?.type, {
+            ? toChartNumericValue(rawX, xCol?.type)
+            : toChartAxisValue(rawX, xCol?.type, {
                 sortable: xSortableDates,
               }),
-          [config.yColumn!]: toChartNumericValue(row[config.yColumn!], yCol?.type),
+          [config.yColumn!]: toChartNumericValue(rawY, yCol?.type),
         };
 
         if (valueColumn) {
-          point[valueColumn] = toChartNumericValue(row[valueColumn], valueColMeta?.type);
+          point[valueColumn] = toChartNumericValue(row[valueColumn] ?? null, valueColMeta?.type);
         }
 
         return point;
